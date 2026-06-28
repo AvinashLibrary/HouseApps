@@ -349,6 +349,16 @@ body {
   background: #fecaca;
 }
 
+.alert-chip-monthly {
+  background: var(--amber-bg);
+  color: var(--amber);
+  border-color: #fcd34d;
+}
+
+.alert-chip-monthly:hover {
+  background: #fde68a;
+}
+
 .no-alerts {
   color: var(--green);
   font-size: 0.85rem;

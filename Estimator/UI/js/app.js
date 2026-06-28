@@ -332,30 +332,34 @@ function onActualInput(itemKey, mi, val) {
 // ─── Dashboard ────────────────────────────────────────────
 
 function refreshDashboard() {
-  const c = getCombined();
-  let totalSpent = 0, totalBudget = 0;
+  let currentMonth =  new Date().getMonth();
+  const monthName = MONTHS[currentMonth];
+
+  // KPIs — scoped to activeMonth
+  let mSpent = 0, mBudget = 0;
   BUDGET_STRUCTURE.forEach(cat => {
     cat.subs.forEach(sub => {
-      totalBudget += subBudget(cat, sub);
-      totalSpent  += subActualTotal(sub);
+      mBudget += subBudget(cat, sub);
+      mSpent  += subActualMonth(sub, activeMonth);
     });
   });
-  const pct = totalBudget > 0 ? Math.round(totalSpent / totalBudget * 100) : 0;
+  const pct = mBudget > 0 ? Math.round(mSpent / mBudget * 100) : 0;
 
   document.getElementById('dash-kpis').innerHTML = `
-    <div class="kpi-card"><div class="kpi-label">Monthly Budget</div><div class="kpi-val">${fmt(c)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Total Entered</div><div class="kpi-val">${fmt(totalSpent)}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Remaining</div><div class="kpi-val ${totalBudget-totalSpent>=0?'green':'red'}">${fmt(Math.abs(totalBudget-totalSpent))}</div></div>
-    <div class="kpi-card"><div class="kpi-label">Budget Used</div><div class="kpi-val">${pct}%</div><div class="kpi-sub">across all months</div></div>`;
+    <div class="kpi-card"><div class="kpi-label">${monthName} Budget</div><div class="kpi-val">${fmt(mBudget)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${monthName} Entered</div><div class="kpi-val">${fmt(mSpent)}</div></div>
+    <div class="kpi-card"><div class="kpi-label">${monthName} Remaining</div><div class="kpi-val ${mBudget-mSpent>=0?'green':'red'}">${fmt(Math.abs(mBudget-mSpent))}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Budget Used</div><div class="kpi-val">${pct}%</div><div class="kpi-sub">${monthName} vs monthly budget</div></div>`;
 
+  // Health bars — scoped to activeMonth
   let healthHtml = '';
   BUDGET_STRUCTURE.forEach(cat => {
     const budget = cat.subs.reduce((s, sub) => s + subBudget(cat, sub), 0);
-    const spent  = catActualTotal(cat);
+    const spent  = catActualMonth(cat, activeMonth);
     const p      = budget > 0 ? Math.min(spent / budget * 100, 100) : 0;
     const cls    = p > 100 ? 'over' : p > 80 ? 'warn' : 'ok';
     const status = p > 100 ? `Over by ${fmt(spent-budget)}` : p > 80 ? `${Math.round(100-p)}% headroom` : `${fmt(budget-spent)} remaining`;
-    healthHtml += `<div class="health-card" onclick="showTabByName('track')">
+    healthHtml += `<div class="health-card" onclick="navigateToRow('${cat.subs[0].key}', ${activeMonth})">
       <div class="health-cat">${cat.label}</div>
       <div class="health-spent">${fmt(spent)}</div>
       <div class="health-budget">of ${fmt(budget)} budget</div>
@@ -365,22 +369,38 @@ function refreshDashboard() {
   });
   document.getElementById('dash-health').innerHTML = healthHtml;
 
-  let alerts = [];
+  // Dual-scope alerts: Monthly (amber) + Yearly (red)
+  const monthlyAlerts = [], yearlyAlerts = [];
   BUDGET_STRUCTURE.forEach(cat => {
     cat.subs.forEach(sub => {
-      const budget = subBudget(cat, sub);
-      const spent  = subActualTotal(sub);
-      if (spent > budget) alerts.push({ sub, cat, over: spent - budget });
+      const mActual = subActualMonth(sub, activeMonth);
+      const mBudget = subBudget(cat, sub);
+      const yActual = subActualTotal(sub);
+      const yBudget = mBudget * MONTHS.length;
+      if (mActual > mBudget) monthlyAlerts.push({ sub, over: mActual - mBudget });
+      if (yActual > yBudget) yearlyAlerts.push({ sub, over: yActual - yBudget });
     });
   });
-  const alertsEl = document.getElementById('dash-alerts');
-  alertsEl.innerHTML = alerts.length === 0
-    ? `<div class="no-alerts">✓ All categories within budget</div>`
-    : `<div class="alert-chips">${alerts.map(a =>
-        `<span class="alert-chip" onclick="navigateToRow('${a.sub.key}')">
-          ${a.sub.label} — over by ${fmt(a.over)}
-        </span>`).join('')}</div>`;
 
+  const alertsEl = document.getElementById('dash-alerts');
+  if (monthlyAlerts.length === 0 && yearlyAlerts.length === 0) {
+    alertsEl.innerHTML = `<div class="no-alerts">✓ All categories within budget for ${monthName}</div>`;
+  } else {
+    let chips = '';
+    monthlyAlerts.forEach(a => {
+      chips += `<span class="alert-chip alert-chip-monthly" onclick="navigateToRow('${a.sub.key}', ${activeMonth})">
+        [Monthly] ${a.sub.label} — over by ${fmt(a.over)}
+      </span>`;
+    });
+    yearlyAlerts.forEach(a => {
+      chips += `<span class="alert-chip" onclick="navigateToRow('${a.sub.key}', ${activeMonth})">
+        [Yearly] ${a.sub.label} — over by ${fmt(a.over)}
+      </span>`;
+    });
+    alertsEl.innerHTML = `<div class="alert-chips">${chips}</div>`;
+  }
+
+  // Recent entries — all changes, newest first
   const recentEl = document.getElementById('dash-recent');
   const recent   = changeLog.slice(0, 5);
   recentEl.innerHTML = recent.length === 0

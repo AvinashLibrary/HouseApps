@@ -19,7 +19,7 @@ const BUDGET_STRUCTURE = [
       { key:'shopping',  label:'Shopping',                     pct:0.20 },
       { key:'dining',    label:'Dining and Entertainment',     pct:0.10 },
       { key:'subs',      label:'Subscriptions and Activities', pct:0.10 },
-      { key:'travel',    label:'Travel and Holiday',           pct:0.55 },
+      { key:'travel',    label:'Travel and Holiday',           pct:0.45 },
       { key:'misc',      label:'Miscellaneous Wants',          pct:0.15 },
     ]
   },
@@ -59,7 +59,7 @@ const actuals = {};   // populated from server when a group is opened
 const billLog   = [];
 const changeLog = [];
 
-let activeMonth         = 0;
+let activeMonth         = new Date().getMonth();
 let receiptMonthFilter  = 'all';
 let collapsed           = {};
 
