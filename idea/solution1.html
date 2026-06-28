@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exam Prep Portal — Dev Plan</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:system-ui,sans-serif;background:#f5f4f0;color:#1a1a18;font-size:14px;line-height:1.6}
+.nav{background:#fff;border-bottom:1px solid #e0dfd6;padding:0 24px;display:flex;gap:0;overflow-x:auto;position:sticky;top:0;z-index:10}
+.nav button{background:none;border:none;padding:14px 18px;font-size:13px;cursor:pointer;color:#666;border-bottom:2px solid transparent;white-space:nowrap;font-weight:500}
+.nav button.active{color:#1a1a18;border-bottom-color:#1a1a18}
+.nav button:hover:not(.active){color:#333}
+.page{display:none;padding:24px;max-width:900px;margin:0 auto}
+.page.active{display:block}
+h1{font-size:22px;font-weight:600;margin-bottom:4px}
+h2{font-size:16px;font-weight:600;margin:24px 0 10px}
+h3{font-size:14px;font-weight:600;margin:16px 0 8px;color:#444}
+.subtitle{color:#666;font-size:13px;margin-bottom:24px}
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;margin-left:6px;vertical-align:middle}
+.badge-green{background:#e6f4ea;color:#1a6b2e}
+.badge-yellow{background:#fef9e7;color:#7d5a00}
+.badge-blue{background:#e8f0fe;color:#1a4db5}
+.badge-red{background:#fce8e6;color:#a50e0e}
+.phase-card{background:#fff;border-radius:10px;border:1px solid #e0dfd6;margin-bottom:16px;overflow:hidden}
+.phase-header{padding:14px 18px;display:flex;align-items:center;gap:12px;cursor:pointer;user-select:none}
+.phase-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.phase-title{font-weight:600;font-size:14px;flex:1}
+.phase-meta{font-size:12px;color:#888}
+.phase-body{padding:0 18px 18px;display:none}
+.phase-body.open{display:block}
+.checklist{list-style:none;margin:8px 0}
+.checklist li{padding:5px 0;border-bottom:1px solid #f0efe8;display:flex;align-items:flex-start;gap:8px;font-size:13px;color:#333}
+.checklist li:last-child{border-bottom:none}
+.checklist li::before{content:"☐";color:#bbb;flex-shrink:0;margin-top:1px}
+.table-wrap{overflow-x:auto;margin:10px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:#f5f4f0;padding:8px 12px;text-align:left;font-weight:600;color:#555;border-bottom:2px solid #e0dfd6}
+td{padding:8px 12px;border-bottom:1px solid #f0efe8;vertical-align:top}
+tr:last-child td{border-bottom:none}
+.p0{background:#fff3e0;color:#e65100;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px}
+.p1{background:#e3f2fd;color:#0d47a1;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px}
+.p2{background:#f3e5f5;color:#4a148c;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px}
+.metric-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:12px 0}
+.metric-card{background:#f5f4f0;border-radius:8px;padding:14px}
+.metric-card.green{background:#e6f4ea}
+.metric-card.yellow{background:#fef9e7}
+.metric-card.red{background:#fce8e6}
+.metric-label{font-size:11px;color:#666;margin-bottom:4px}
+.metric-val{font-size:20px;font-weight:700;color:#1a1a18}
+.metric-sub{font-size:11px;color:#888;margin-top:2px}
+.risk-row{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #f0efe8;font-size:13px}
+.risk-row:last-child{border-bottom:none}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.dot-red{background:#e53935}
+.dot-yellow{background:#fb8c00}
+.dot-green{background:#43a047}
+/* ---- ESTIMATOR STYLES ---- */
+.est-section{margin-bottom:24px}
+.est-title{font-size:12px;font-weight:600;color:#888;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px}
+.slider-row{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.slider-label{font-size:13px;color:#555;min-width:130px}
+.slider-val{font-size:13px;font-weight:600;min-width:60px;text-align:right;color:#1a1a18}
+input[type=range]{flex:1;accent-color:#1a1a18}
+.stack-row{display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #f0efe8}
+.stack-row:last-child{border-bottom:none}
+.stack-icon{width:32px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:17px}
+.stack-body{flex:1;min-width:0}
+.stack-name{font-size:13px;font-weight:600;color:#1a1a18;margin-bottom:2px}
+.stack-detail{font-size:12px;color:#666}
+.stack-cost{font-size:13px;font-weight:700;white-space:nowrap;padding-top:2px}
+.green-cost{color:#1a6b2e}
+.yellow-cost{color:#7d5a00}
+.scale-row{display:flex;gap:10px;align-items:flex-start;margin-bottom:10px}
+.scale-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.scale-text{font-size:13px;color:#555;line-height:1.5}
+.tip-box{background:#e8f0fe;border-radius:8px;padding:12px 16px;font-size:12px;color:#1a4db5;margin-top:12px;line-height:1.6}
+.phase-toggle{font-size:18px;color:#bbb;transition:transform .2s}
+.phase-toggle.open{transform:rotate(90deg)}
+</style>
+</head>
+<body>
+
+<div class="nav">
+  <button class="active" onclick="show('overview')">Overview</button>
+  <button onclick="show('research')">Phase 1 · Research</button>
+  <button onclick="show('design')">Phase 2 · Design</button>
+  <button onclick="show('mvp')">Phase 3 · MVP</button>
+  <button onclick="show('testing')">Phase 4 · Testing</button>
+  <button onclick="show('launch')">Phase 5 · Launch</button>
+  <button onclick="show('infra')">💰 Infra Cost</button>
+</div>
+
+<!-- OVERVIEW -->
+<div id="overview" class="page active">
+  <h1>Exam Prep Portal</h1>
+  <p class="subtitle">The GPS for NEET · UPSC · SBI PO · SBI Clerk — built solo with Claude, zero video lectures needed</p>
+
+  <h2>12-Month Roadmap</h2>
+  <div id="phases">
+
+    <div class="phase-card">
+      <div class="phase-header" onclick="toggle(this)">
+        <div class="phase-num" style="background:#fff3e0;color:#e65100">1</div>
+        <div>
+          <div class="phase-title">Research & Validation</div>
+          <div class="phase-meta">Month 1–2</div>
+        </div>
+        <span class="phase-toggle">›</span>
+      </div>
+      <div class="phase-body">
+        <ul class="checklist">
+          <li>20–30 user interviews with NEET droppers, UPSC first-timers, SBI aspirants</li>
+          <li>Map syllabus topic trees for all 4 exams from official sites</li>
+          <li>Score topics by PYQ frequency (High / Medium / Low)</li>
+          <li>Deep-dive competitor apps: PW, Unacademy, Testbook, EduRev</li>
+          <li>Evaluate tech stack: Supabase + Cloudflare Pages + Claude Haiku API</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header" onclick="toggle(this)">
+        <div class="phase-num" style="background:#e8f0fe;color:#1a4db5">2</div>
+        <div>
+          <div class="phase-title">Design & Prototyping</div>
+          <div class="phase-meta">Month 2–3</div>
+        </div>
+        <span class="phase-toggle">›</span>
+      </div>
+      <div class="phase-body">
+        <ul class="checklist">
+          <li>Define user flow: Exam → Goal → Timeline → Plan generated in &lt;60s</li>
+          <li>Wireframe all 8 core screens</li>
+          <li>Design Claude API prompts for plan generation and weekly digest</li>
+          <li>Test prototype with 10 target users before writing any code</li>
+          <li>Build plan template library (~50 combos): cache in Supabase to minimise API calls</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header" onclick="toggle(this)">
+        <div class="phase-num" style="background:#e6f4ea;color:#1a6b2e">3</div>
+        <div>
+          <div class="phase-title">MVP Development</div>
+          <div class="phase-meta">Month 3–6 · 6 sprints × 2 weeks</div>
+        </div>
+        <span class="phase-toggle">›</span>
+      </div>
+      <div class="phase-body">
+        <div class="table-wrap">
+          <table>
+            <tr><th>Sprint</th><th>Focus</th></tr>
+            <tr><td>1</td><td>Project setup · Supabase auth · onboarding flow</td></tr>
+            <tr><td>2</td><td>Topic database (all 4 exams) · checklist UI · progress tracking</td></tr>
+            <tr><td>3</td><td>Claude API integration · study plan generator · daily task engine</td></tr>
+            <tr><td>4</td><td>UPSC age advisor · SBI modules · dashboard + progress charts</td></tr>
+            <tr><td>5</td><td>Weekly digest pipeline (YouTube API + Claude) · streaks + badges</td></tr>
+            <tr><td>6</td><td>Offline mode · performance tuning · low-end Android testing</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header" onclick="toggle(this)">
+        <div class="phase-num" style="background:#f3e5f5;color:#4a148c">4</div>
+        <div>
+          <div class="phase-title">Testing & Quality</div>
+          <div class="phase-meta">Month 6–7</div>
+        </div>
+        <span class="phase-toggle">›</span>
+      </div>
+      <div class="phase-body">
+        <ul class="checklist">
+          <li>Test on 5 Android devices (low-end to mid-range) + iPhone SE</li>
+          <li>100 Claude API plan generation consistency tests</li>
+          <li>50 beta users: 15 NEET + 20 UPSC + 15 SBI — 4 weeks access</li>
+          <li>Track DAU, session length, plan completion rate, drop-off screens</li>
+          <li>Fix top 10 issues before public launch</li>
+          <li>Google Play closed test (12+ testers, 14 days — 2026 requirement)</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="phase-card">
+      <div class="phase-header" onclick="toggle(this)">
+        <div class="phase-num" style="background:#fce8e6;color:#a50e0e">5</div>
+        <div>
+          <div class="phase-title">Launch & Growth</div>
+          <div class="phase-meta">Month 7–9</div>
+        </div>
+        <span class="phase-toggle">›</span>
+      </div>
+      <div class="phase-body">
+        <ul class="checklist">
+          <li>Soft launch on Play Store first (Android = 80% of Indian students)</li>
+          <li>Post in WhatsApp groups, r/UPSC, r/NEETpreparation, r/bankexams</li>
+          <li>Reels/Shorts: "NEET in 30 days — here's your exact plan"</li>
+          <li>Build Telegram channel: daily topic + exam news</li>
+          <li>Respond to every App Store review within 24 hours</li>
+          <li>Introduce premium (₹99–199/mo) at Month 9 — never lock core checklists</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>MVP Feature Scope</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Feature</th><th>Priority</th><th>Notes</th></tr>
+      <tr><td>Exam selector (NEET/UPSC/SBI PO/Clerk)</td><td><span class="p0">P0</span></td><td>Core onboarding</td></tr>
+      <tr><td>Goal selector (Top Rank / Safe Pass / First Timer)</td><td><span class="p0">P0</span></td><td>Drives plan logic</td></tr>
+      <tr><td>Timeline picker + AI study plan generation</td><td><span class="p0">P0</span></td><td>The core value prop</td></tr>
+      <tr><td>Topic checklist + status tracking</td><td><span class="p0">P0</span></td><td>Not Started / Done / Revise</td></tr>
+      <tr><td>Progress bar per subject + overall</td><td><span class="p0">P0</span></td><td>Visual motivation</td></tr>
+      <tr><td>Exam countdown + daily task</td><td><span class="p0">P0</span></td><td>"What to study today"</td></tr>
+      <tr><td>Save progress across sessions</td><td><span class="p0">P0</span></td><td>Supabase auth</td></tr>
+      <tr><td>UPSC age-based track advisor</td><td><span class="p1">P1</span></td><td>Unique differentiator</td></tr>
+      <tr><td>Weekly AI digest (YouTube + PYQ trends)</td><td><span class="p1">P1</span></td><td>Claude + YouTube API</td></tr>
+      <tr><td>Free resource links per topic</td><td><span class="p1">P1</span></td><td>PW YouTube, NTA PDFs</td></tr>
+      <tr><td>Streak counter + milestone badges</td><td><span class="p2">P2</span></td><td>Retention driver</td></tr>
+      <tr><td>Push notifications</td><td><span class="p2">P2</span></td><td>Daily task reminder</td></tr>
+      <tr><td>Offline mode</td><td><span class="p2">P2</span></td><td>Download weekly plan</td></tr>
+    </table>
+  </div>
+
+  <h2>Success Metrics</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Metric</th><th>3 months</th><th>6 months</th><th>12 months</th></tr>
+      <tr><td>App downloads</td><td>1,000</td><td>10,000</td><td>50,000</td></tr>
+      <tr><td>Daily active users</td><td>200</td><td>2,000</td><td>15,000</td></tr>
+      <tr><td>Plan completion rate</td><td>40%</td><td>55%</td><td>65%</td></tr>
+      <tr><td>Day-7 retention</td><td>25%</td><td>35%</td><td>45%</td></tr>
+      <tr><td>App Store rating</td><td>4.0+</td><td>4.2+</td><td>4.4+</td></tr>
+      <tr><td>Premium conversions</td><td>—</td><td>2%</td><td>5%</td></tr>
+    </table>
+  </div>
+
+  <h2>Risk Register</h2>
+  <div style="background:#fff;border-radius:10px;border:1px solid #e0dfd6;padding:16px">
+    <div class="risk-row"><div class="dot dot-red"></div><div class="scale-text"><strong>Low Day-7 retention</strong> — Mitigate with daily task loop + streak system built from Day 1</div></div>
+    <div class="risk-row"><div class="dot dot-yellow"></div><div class="scale-text"><strong>Claude API costs spike</strong> — Cache all common plan types in Supabase; only call API for truly custom inputs</div></div>
+    <div class="risk-row"><div class="dot dot-yellow"></div><div class="scale-text"><strong>UPSC/NTA syllabus changes</strong> — Monthly audit process + in-app alert system for topic updates</div></div>
+    <div class="risk-row"><div class="dot dot-red"></div><div class="scale-text"><strong>Competitor copies concept</strong> — Move fast; community moat (Telegram + Reddit) is hard to copy</div></div>
+    <div class="risk-row"><div class="dot dot-green"></div><div class="scale-text"><strong>App Store rejection</strong> — Follow 2026 Play Store guidelines (API 36, closed test, privacy policy) from Day 1</div></div>
+  </div>
+</div>
+
+<!-- RESEARCH -->
+<div id="research" class="page">
+  <h1>Phase 1 — Research & Validation</h1>
+  <p class="subtitle">Month 1–2 · Do this before writing a single line of code</p>
+  <h2>1.1 User Research</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>Post in r/UPSC, r/NEETpreparation, r/bankexams — recruit 20–30 aspirants for 15-min calls</li>
+    <li>Ask: current apps used, biggest frustration, daily study hours, target goal</li>
+    <li>Map student journey: Day 1 → Midway dropout → What breaks them</li>
+    <li>Identify 3 personas: Topper / Safe Qualifier / First Timer</li>
+    <li>Validate: do they want a planner more than another content app?</li>
+  </ul>
+  <h2>1.2 Competitor Analysis</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>App</th><th>Strength</th><th>Fatal Flaw (per reviews)</th></tr>
+      <tr><td>Physics Wallah</td><td>Free video content, affordable</td><td>No refund policy, login bugs, no progress tracker</td></tr>
+      <tr><td>Unacademy</td><td>Live classes, top teachers</td><td>50 sales calls/day, confusing UI, expensive</td></tr>
+      <tr><td>Testbook</td><td>Mock tests, analytics</td><td>Unauthorised EMI, no support, paywalls</td></tr>
+      <tr><td>EduRev</td><td>PYQs, notes library</td><td>Stale syllabus, content locked behind paywall</td></tr>
+      <tr><td>NEETprep</td><td>Biology focus</td><td>Locked chapters after update — worst rating trigger</td></tr>
+    </table>
+  </div>
+  <h2>1.3 Content Research</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>Download official syllabi: NTA (NEET), upsc.gov.in, sbi.co.in</li>
+    <li>Map each exam: Subject → Chapter → Topic → Subtopic</li>
+    <li>Analyse last 10 years PYQs: score topics High / Medium / Low frequency</li>
+    <li>Research topper strategies: what they skipped, what they prioritised by timeline</li>
+    <li>Build ~50 plan templates covering all exam × goal × timeline combos</li>
+  </ul>
+  <h2>1.4 Tech Stack Decision</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Layer</th><th>Choice</th><th>Why</th></tr>
+      <tr><td>Frontend</td><td>React (web-first)</td><td>Build with Claude, deploy instantly, no app store wait</td></tr>
+      <tr><td>Backend / DB</td><td>Supabase</td><td>Free tier 50k MAU, auth + DB + storage in one</td></tr>
+      <tr><td>Hosting</td><td>Cloudflare Pages</td><td>Free, unlimited bandwidth, commercial use allowed</td></tr>
+      <tr><td>AI Layer</td><td>Claude Haiku 4.5</td><td>$1/$5 per MTok — cheapest quality AI for plan gen</td></tr>
+      <tr><td>Data Fetch</td><td>YouTube Data API v3</td><td>10k free units/day — enough for weekly digest</td></tr>
+      <tr><td>Analytics</td><td>PostHog</td><td>1M events/month free, privacy-friendly</td></tr>
+      <tr><td>CI/CD + Cron</td><td>GitHub Actions</td><td>2000 free min/month — also runs Supabase keepalive</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- DESIGN -->
+<div id="design" class="page">
+  <h1>Phase 2 — Design & Prototyping</h1>
+  <p class="subtitle">Month 2–3 · UX principles based on App Store research</p>
+  <h2>Core User Flow</h2>
+  <div style="background:#fff;border-radius:10px;border:1px solid #e0dfd6;padding:16px;font-size:13px;line-height:2">
+    Pick Exam → Set Goal → Set Timeline → (UPSC: enter age) → AI generates plan → Topic checklist appears → Daily task shown → Progress saved
+  </div>
+  <h2>UX Principles (based on competitor failures)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Rule</th><th>Why (evidence)</th></tr>
+      <tr><td>Onboarding under 60 seconds</td><td>Confusing UI = #1 Unacademy complaint</td></tr>
+      <tr><td>No login to explore — login only to save</td><td>Reduces friction at first open</td></tr>
+      <tr><td>Zero promotional pop-ups in study flow</td><td>Ads now #1 complaint across all edtech apps (2025 data)</td></tr>
+      <tr><td>Works on 4GB RAM Android (MIUI/ColorOS)</td><td>Most Indian students use low-end devices</td></tr>
+      <tr><td>Never lock core checklists</td><td>NEETprep lost 4-star reviews overnight by locking chapters</td></tr>
+      <tr><td>Transparent pricing — show cost upfront</td><td>Hidden paywalls = 1-star reviews guaranteed</td></tr>
+    </table>
+  </div>
+  <h2>Claude API Prompt Design</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>Study plan generator — inputs: exam, goal, timeline, hours/day available</li>
+    <li>Daily task engine — "what should I study today given my progress?"</li>
+    <li>Weekly digest summariser — inputs: top YouTube videos + Reddit posts this week</li>
+    <li>UPSC age advisor — inputs: current age, years available, attempt count</li>
+    <li>Weak topic identifier — based on self-reported checklist progress</li>
+    <li>Cache all common plan types in Supabase — call API only for custom inputs</li>
+  </ul>
+  <h2>8 Core Screens</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>#</th><th>Screen</th><th>Key elements</th></tr>
+      <tr><td>1</td><td>Onboarding</td><td>Exam picker → Goal → Timeline (4 taps max)</td></tr>
+      <tr><td>2</td><td>Dashboard</td><td>Countdown, today's task, overall % progress</td></tr>
+      <tr><td>3</td><td>Study Plan</td><td>Week-by-week schedule, topics per day</td></tr>
+      <tr><td>4</td><td>Topic Checklist</td><td>Subject → Chapter → Topic, status badges</td></tr>
+      <tr><td>5</td><td>Progress</td><td>Subject-wise bars, streak count, badges</td></tr>
+      <tr><td>6</td><td>Weekly Digest</td><td>AI summary of top videos + trending PYQ topics</td></tr>
+      <tr><td>7</td><td>UPSC Track</td><td>Age-based timeline, Prelims → Mains → Interview path</td></tr>
+      <tr><td>8</td><td>Settings</td><td>Exam change, daily hours, notification time</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- MVP -->
+<div id="mvp" class="page">
+  <h1>Phase 3 — MVP Development</h1>
+  <p class="subtitle">Month 3–6 · Building solo with Claude</p>
+  <h2>How to build this with Claude</h2>
+  <div style="background:#e8f0fe;border-radius:8px;padding:14px 16px;font-size:13px;line-height:1.7;margin-bottom:16px">
+    Use Claude to generate complete React components, Supabase schema, API route logic, and prompt templates. Build one screen at a time. Test in browser. Iterate. You don't need to know every line — you need to understand the output well enough to direct the next step.
+  </div>
+  <h2>Sprint Plan</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Sprint</th><th>Weeks</th><th>Deliverable</th><th>Claude tasks</th></tr>
+      <tr><td>1</td><td>1–2</td><td>Auth + onboarding</td><td>Supabase schema, login UI, exam/goal/timeline picker</td></tr>
+      <tr><td>2</td><td>3–4</td><td>Topic database + checklist</td><td>Topic tree data structure, checklist component, status logic</td></tr>
+      <tr><td>3</td><td>5–6</td><td>AI plan generator</td><td>Haiku prompt design, plan caching in Supabase, daily task logic</td></tr>
+      <tr><td>4</td><td>7–8</td><td>UPSC + SBI modules</td><td>Age-advisor prompts, SBI syllabus tree, dashboard charts</td></tr>
+      <tr><td>5</td><td>9–10</td><td>Digest + streaks</td><td>YouTube API cron, Claude summariser, streak + badge system</td></tr>
+      <tr><td>6</td><td>11–12</td><td>Polish + offline</td><td>Service worker, performance audit, error handling</td></tr>
+    </table>
+  </div>
+  <h2>What's OUT of MVP</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>Video lectures — out of scope permanently by design</li>
+    <li>Live classes or doubt clearing</li>
+    <li>Paid subscriptions — launch free, monetise at Month 9</li>
+    <li>Built-in mock tests — link to free Testbook/EduRev instead</li>
+    <li>Community / forum features</li>
+  </ul>
+  <h2>Monetisation (Month 9+)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Tier</th><th>Price</th><th>What's included</th></tr>
+      <tr><td><strong>Free forever</strong></td><td>₹0</td><td>All checklists, basic plan, progress tracker, daily task</td></tr>
+      <tr><td><strong>Premium</strong></td><td>₹99–199/mo</td><td>Adaptive AI plan, weekly digest, analytics heatmap, multi-exam</td></tr>
+    </table>
+  </div>
+  <div style="font-size:12px;color:#888;margin-top:8px;font-style:italic">Rule: Never lock anything that helps a student know what to study. Only lock enhancements.</div>
+</div>
+
+<!-- TESTING -->
+<div id="testing" class="page">
+  <h1>Phase 4 — Testing & Quality</h1>
+  <p class="subtitle">Month 6–7 · Before public launch</p>
+  <h2>Internal Testing Checklist</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>All 4 exam flows end-to-end on Chrome, Safari, Android WebView</li>
+    <li>Claude API: 100 plan generations — check for consistency and edge cases</li>
+    <li>Supabase: test with 200 concurrent connections (free tier limit)</li>
+    <li>Offline mode: airplane mode scenarios — does the plan load from cache?</li>
+    <li>Low-end Android: Redmi 9, Samsung A13 — test UI and scroll performance</li>
+    <li>Dark mode compatibility check</li>
+  </ul>
+  <h2>Beta Testing (50 users)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Group</th><th>Count</th><th>What to watch</th></tr>
+      <tr><td>NEET aspirants</td><td>15</td><td>Topic checklist completeness, plan accuracy</td></tr>
+      <tr><td>UPSC aspirants</td><td>20</td><td>Age advisor usefulness, digest relevance</td></tr>
+      <tr><td>SBI PO/Clerk</td><td>15</td><td>Onboarding speed, banking topic coverage</td></tr>
+    </table>
+  </div>
+  <h2>App Store Preparation</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>Google Play: target API 36 (mandatory from Aug 31, 2026)</li>
+    <li>Closed test with 12+ testers for 14 days (2026 Play Store requirement)</li>
+    <li>Privacy policy + terms of service page (required)</li>
+    <li>5 screenshot assets showing plan, checklist, progress, digest, UPSC track</li>
+    <li>Keyword-optimised listing: "NEET preparation", "UPSC study plan", "SBI PO tracker"</li>
+    <li>30-second preview video showing the core onboarding flow</li>
+  </ul>
+</div>
+
+<!-- LAUNCH -->
+<div id="launch" class="page">
+  <h1>Phase 5 — Launch & Growth</h1>
+  <p class="subtitle">Month 7–9 · Zero budget growth tactics</p>
+  <h2>Week 1 — Soft Launch</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>Release on Play Store (Android first)</li>
+    <li>Share in 5 WhatsApp groups of NEET/UPSC aspirants</li>
+    <li>Post on r/UPSC, r/NEETpreparation, r/bankexams — genuine "I built this" post</li>
+    <li>DM 10 aspirants from beta group — ask for Play Store review</li>
+  </ul>
+  <h2>Month 2–3 — Content Growth</h2>
+  <ul class="checklist" style="background:#fff;border-radius:8px;border:1px solid #e0dfd6;padding:12px 16px">
+    <li>Instagram Reels: "NEET in 30 days — here's your topic-by-topic plan"</li>
+    <li>YouTube Shorts: "UPSC at 30 — which track should you take?"</li>
+    <li>Reach out to 5 mid-size YouTube channels for honest reviews (no payment)</li>
+    <li>Build Telegram channel: daily "Topic of the Day" + exam news</li>
+    <li>Weekly "Topper PYQ Insight" post — drives organic shares</li>
+    <li>Respond to every App Store review within 24 hours</li>
+  </ul>
+  <h2>Differentiation Rules (never break these)</h2>
+  <div class="table-wrap">
+    <table>
+      <tr><th>Competitor sin</th><th>Your rule</th></tr>
+      <tr><td>50 sales calls after signup</td><td>Zero outbound sales calls. Ever.</td></tr>
+      <tr><td>Locking chapters mid-journey</td><td>Core checklists free forever</td></tr>
+      <tr><td>Hidden pricing</td><td>Premium price shown on homepage, no surprises</td></tr>
+      <tr><td>Stale syllabus</td><td>Monthly audit, in-app alert if syllabus changes</td></tr>
+      <tr><td>Ignoring reviews</td><td>Every review replied to within 24 hours</td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- INFRA COST ESTIMATOR -->
+<div id="infra" class="page">
+  <h1>Infrastructure Cost Estimator</h1>
+  <p class="subtitle">Real-time calculator for your stack at any user volume</p>
+
+  <div class="est-section">
+    <div class="est-title">Adjust your usage</div>
+    <div class="slider-row">
+      <span class="slider-label">Daily active users</span>
+      <input type="range" min="100" max="10000" step="100" value="1000" id="dau">
+      <span class="slider-val" id="dau-out">1,000</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">AI calls per user/day</span>
+      <input type="range" min="0" max="5" step="1" value="1" id="ai-calls">
+      <span class="slider-val" id="ai-out">1</span>
+    </div>
+    <div class="slider-row">
+      <span class="slider-label">Tokens per call (k)</span>
+      <input type="range" min="1" max="10" step="1" value="2" id="tokens">
+      <span class="slider-val" id="tok-out">2k</span>
+    </div>
+  </div>
+
+  <div class="metric-grid" id="metric-cards">
+    <div class="metric-card green">
+      <div class="metric-label">Monthly users (MAU)</div>
+      <div class="metric-val" id="mau-val">30k</div>
+      <div class="metric-sub">Free limit: 50k</div>
+    </div>
+    <div class="metric-card" id="ai-cost-card">
+      <div class="metric-label">Claude API / month</div>
+      <div class="metric-val" id="ai-cost-val">&lt;$1</div>
+      <div class="metric-sub" id="ai-calls-sub">30k calls (cached)</div>
+    </div>
+    <div class="metric-card green">
+      <div class="metric-label">Hosting cost</div>
+      <div class="metric-val">$0</div>
+      <div class="metric-sub">Cloudflare Pages</div>
+    </div>
+    <div class="metric-card" id="total-card">
+      <div class="metric-label">Total / month</div>
+      <div class="metric-val" id="total-val">&lt;$1</div>
+      <div class="metric-sub" id="total-sub">Practically free</div>
+    </div>
+  </div>
+
+  <h2>Stack Breakdown</h2>
+  <div style="background:#fff;border-radius:10px;border:1px solid #e0dfd6;padding:4px 16px">
+    <div class="stack-row">
+      <div class="stack-icon" style="background:#e6f4ea;font-size:18px">🗄</div>
+      <div class="stack-body">
+        <div class="stack-name">Supabase <span class="badge badge-green">Free tier</span></div>
+        <div class="stack-detail">DB + auth + storage + real-time. 50k MAU free. Unlimited API requests. No pausing if pinged weekly via GitHub Actions.</div>
+      </div>
+      <span class="stack-cost green-cost">$0/mo</span>
+    </div>
+    <div class="stack-row">
+      <div class="stack-icon" style="background:#e8f0fe;font-size:18px">☁️</div>
+      <div class="stack-body">
+        <div class="stack-name">Cloudflare Pages <span class="badge badge-green">Free + commercial</span></div>
+        <div class="stack-detail">Unlimited bandwidth. 300+ CDN locations. Commercial use allowed (Vercel Hobby is not). 100k Workers requests/day free.</div>
+      </div>
+      <span class="stack-cost green-cost">$0/mo</span>
+    </div>
+    <div class="stack-row">
+      <div class="stack-icon" style="background:#fef9e7;font-size:18px">🤖</div>
+      <div class="stack-body">
+        <div class="stack-name">Claude Haiku 4.5 <span class="badge badge-yellow">Pay per use</span></div>
+        <div class="stack-detail">$1/$5 per MTok. Use for daily plans + checklists. Prompt caching gives 90% savings on repeated context. Cache common plan combos in Supabase.</div>
+      </div>
+      <span class="stack-cost yellow-cost" id="haiku-cost-label">~$1/mo</span>
+    </div>
+    <div class="stack-row">
+      <div class="stack-icon" style="background:#e6f4ea;font-size:18px">⚙️</div>
+      <div class="stack-body">
+        <div class="stack-name">GitHub Actions <span class="badge badge-green">Free</span></div>
+        <div class="stack-detail">CI/CD pipeline, weekly YouTube API cron, Supabase keepalive ping. 2000 free minutes/month on public repos.</div>
+      </div>
+      <span class="stack-cost green-cost">$0/mo</span>
+    </div>
+    <div class="stack-row">
+      <div class="stack-icon" style="background:#e6f4ea;font-size:18px">▶️</div>
+      <div class="stack-body">
+        <div class="stack-name">YouTube Data API v3 <span class="badge badge-green">Free</span></div>
+        <div class="stack-detail">10,000 free units/day. Search = 100 units. That's 100 searches/day — enough for weekly digest fetches across all 4 exams.</div>
+      </div>
+      <span class="stack-cost green-cost">$0/mo</span>
+    </div>
+    <div class="stack-row">
+      <div class="stack-icon" style="background:#e6f4ea;font-size:18px">📊</div>
+      <div class="stack-body">
+        <div class="stack-name">PostHog <span class="badge badge-green">Free tier</span></div>
+        <div class="stack-detail">1M events/month free. Track DAU, drop-off screens, plan completions. Privacy-friendly — no cookie banners.</div>
+      </div>
+      <span class="stack-cost green-cost">$0/mo</span>
+    </div>
+  </div>
+
+  <h2>Scale-up Triggers</h2>
+  <div style="background:#fff;border-radius:10px;border:1px solid #e0dfd6;padding:16px">
+    <div class="scale-row"><div class="scale-dot" style="background:#43a047"></div><div class="scale-text"><strong>0–5k DAU:</strong> Entire stack free. Only cost is Claude API calls. Target: under $5/month total.</div></div>
+    <div class="scale-row"><div class="scale-dot" style="background:#fb8c00"></div><div class="scale-text"><strong>5k–10k DAU:</strong> Approaching Supabase 50k MAU free limit. Upgrade to Supabase Pro ($25/mo). Claude API: $10–30/mo with caching.</div></div>
+    <div class="scale-row"><div class="scale-dot" style="background:#e53935"></div><div class="scale-text"><strong>10k+ DAU:</strong> Supabase Pro ($25) + Cloudflare Workers Paid ($5) + Claude API (~$30–80). Total: ~$60–110/mo. At this scale you have users — monetise premium.</div></div>
+  </div>
+
+  <div class="tip-box">
+    💡 <strong>Key cost-saving trick:</strong> Generate ~50 standard plan templates (exam × goal × timeline combos), store in Supabase, serve cached. Only call Claude for truly custom inputs. This cuts AI API cost by 80–90% at any user volume.
+  </div>
+</div>
+
+<script>
+function show(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function toggle(header) {
+  const body = header.nextElementSibling;
+  const arrow = header.querySelector('.phase-toggle');
+  const open = body.classList.toggle('open');
+  arrow.classList.toggle('open', open);
+}
+
+const dauEl = document.getElementById('dau');
+const aiCallsEl = document.getElementById('ai-calls');
+const tokensEl = document.getElementById('tokens');
+
+function updateEstimator() {
+  const dau = parseInt(dauEl.value);
+  const aiCalls = parseInt(aiCallsEl.value);
+  const tokK = parseInt(tokensEl.value);
+
+  document.getElementById('dau-out').textContent = dau.toLocaleString();
+  document.getElementById('ai-out').textContent = aiCalls;
+  document.getElementById('tok-out').textContent = tokK + 'k';
+
+  const mau = dau * 30;
+  const mauEl = document.getElementById('mau-val');
+  mauEl.textContent = mau >= 1000 ? Math.round(mau / 1000) + 'k' : mau;
+  const mauCard = mauEl.closest('.metric-card');
+  mauCard.className = mau > 40000 ? 'metric-card yellow' : 'metric-card green';
+  mauCard.querySelector('.metric-sub').textContent = mau > 50000 ? '⚠ Exceeds free tier (50k)' : 'Free limit: 50k';
+
+  const totalAICalls = dau * 30 * aiCalls;
+  const inputTokens = totalAICalls * tokK * 1000;
+  const outputTokens = totalAICalls * 200;
+  const rawCost = (inputTokens / 1e6) * 1.0 + (outputTokens / 1e6) * 5.0;
+  const aiCost = rawCost * 0.15;
+
+  const aiCostStr = aiCost < 1 ? '<$1' : '$' + Math.round(aiCost);
+  document.getElementById('ai-cost-val').textContent = aiCostStr;
+  document.getElementById('ai-calls-sub').textContent = totalAICalls.toLocaleString() + ' calls (cached)';
+  document.getElementById('haiku-cost-label').textContent = '~' + aiCostStr + '/mo';
+
+  const aiCard = document.getElementById('ai-cost-card');
+  aiCard.className = aiCost > 20 ? 'metric-card yellow' : 'metric-card green';
+
+  const totalCard = document.getElementById('total-card');
+  const totalVal = document.getElementById('total-val');
+  const totalSub = document.getElementById('total-sub');
+  if (aiCost < 5) {
+    totalCard.className = 'metric-card green';
+    totalVal.textContent = '<$5';
+    totalSub.textContent = 'Practically free!';
+  } else if (aiCost < 30) {
+    totalCard.className = 'metric-card';
+    totalVal.textContent = '$' + Math.round(aiCost);
+    totalSub.textContent = 'Very lean — keep caching';
+  } else {
+    totalCard.className = 'metric-card yellow';
+    totalVal.textContent = '$' + Math.round(aiCost);
+    totalSub.textContent = 'Switch more calls to cached';
+  }
+}
+
+[dauEl, aiCallsEl, tokensEl].forEach(el => el.addEventListener('input', updateEstimator));
+updateEstimator();
+</script>
+</body>
+</html>

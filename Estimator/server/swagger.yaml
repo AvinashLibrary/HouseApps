@@ -1,0 +1,921 @@
+openapi: 3.0.3
+info:
+  title: House Estimator API
+  version: 1.0.0
+  description: Budget tracking API for household expense management
+
+servers:
+  - url: http://localhost:4000
+    description: Local dev
+
+# ── Reusable pieces ────────────────────────────────────────────────────────────
+components:
+
+  parameters:
+    groupId:
+      name: groupId
+      in: path
+      required: true
+      schema:
+        type: string
+        example: grp_1750000000000
+
+    year:
+      name: year
+      in: query
+      required: false
+      schema:
+        type: integer
+        example: 2026
+
+    monthIdx:
+      name: monthIdx
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        maximum: 11
+        example: 5
+
+  schemas:
+
+    # ── shared success / error wrapper ──────────────────────────
+    ApiError:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        data:
+          nullable: true
+          example: null
+        error:
+          type: string
+          example: "Group grp_abc not found"
+
+    # ── domain types ────────────────────────────────────────────
+    Member:
+      type: object
+      required: [id, name, color, salary, familyDeduction]
+      properties:
+        id:
+          type: string
+          example: p1
+        name:
+          type: string
+          example: Swati
+        color:
+          type: string
+          example: "#7c3aed"
+        salary:
+          type: number
+          example: 80000
+        familyDeduction:
+          type: number
+          example: 5000
+
+    Group:
+      type: object
+      required: [id, name, members, splits, budgetPcts]
+      properties:
+        id:
+          type: string
+          example: grp_1750000000000
+        name:
+          type: string
+          example: "Swati & Avinash · 2026"
+        members:
+          type: array
+          items:
+            $ref: '#/components/schemas/Member'
+        splits:
+          type: object
+          description: "splits[subCatKey][memberId] = contribution % (0–100)"
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: number
+          example:
+            rent_rent:
+              p1: 60
+              p2: 40
+            food_groceries:
+              p1: 50
+              p2: 50
+        budgetPcts:
+          type: object
+          description: "budgetPcts[catKey] = { pct, subs }"
+          additionalProperties:
+            type: object
+            properties:
+              pct:
+                type: number
+              subs:
+                type: object
+                additionalProperties:
+                  type: number
+          example:
+            needs:
+              pct: 0.50
+              subs:
+                rent: 0.40
+                food: 0.30
+                transport: 0.30
+
+    PostGroupRequest:
+      type: object
+      required: [name, members, splits, budgetPcts]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: "Swati & Avinash · 2026"
+        members:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/Member'
+        splits:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties:
+              type: number
+          example:
+            rent_rent:
+              p1: 60
+              p2: 40
+        budgetPcts:
+          type: object
+          additionalProperties:
+            type: object
+            properties:
+              pct:
+                type: number
+              subs:
+                type: object
+                additionalProperties:
+                  type: number
+          example:
+            needs:
+              pct: 0.50
+              subs:
+                rent: 0.40
+
+    MonthActuals:
+      type: object
+      description: "subCatKey → amount spent"
+      additionalProperties:
+        type: number
+      example:
+        rent_rent: 22500
+        rent_maint: 4500
+        food_groceries: 12000
+
+    PostActualsRequest:
+      type: object
+      required: [year, monthIdx, actuals, savedAt]
+      properties:
+        year:
+          type: integer
+          minimum: 2020
+          maximum: 2100
+          example: 2026
+        monthIdx:
+          type: integer
+          minimum: 0
+          maximum: 11
+          example: 5
+        actuals:
+          $ref: '#/components/schemas/MonthActuals'
+        savedAt:
+          type: string
+          format: date-time
+          example: "2026-06-25T10:30:00.000Z"
+
+    BillEntry:
+      type: object
+      properties:
+        ts:
+          type: string
+          format: date-time
+          example: "2026-06-25T10:30:00.000Z"
+        groupId:
+          type: string
+          example: grp_1750000000000
+        fileName:
+          type: string
+          example: electricity_june.pdf
+        amount:
+          type: number
+          example: 3200
+        subCatKey:
+          type: string
+          example: util_electricity
+        subCatLabel:
+          type: string
+          example: Electricity
+        monthIdx:
+          type: integer
+          example: 5
+        note:
+          type: string
+          example: "June electricity bill"
+
+    PostBillRequest:
+      type: object
+      required: [fileName, amount, subCatKey, subCatLabel, monthIdx, year, note]
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+          example: electricity_june.pdf
+        amount:
+          type: number
+          minimum: 0.01
+          example: 3200
+        subCatKey:
+          type: string
+          example: util_electricity
+        subCatLabel:
+          type: string
+          example: Electricity
+        monthIdx:
+          type: integer
+          minimum: 0
+          maximum: 11
+          example: 5
+        year:
+          type: integer
+          minimum: 2020
+          maximum: 2100
+          example: 2026
+        note:
+          type: string
+          example: "June electricity bill"
+
+    ChangeEntry:
+      type: object
+      properties:
+        ts:
+          type: string
+          format: date-time
+          example: "2026-06-25T10:30:00.000Z"
+        source:
+          type: string
+          enum: [manual, bill]
+          example: manual
+        path:
+          type: string
+          example: "grp_1750000000000/2026/5/rent_rent"
+        month:
+          type: string
+          example: "Jun"
+        monthIdx:
+          type: integer
+          example: 5
+        subCatKey:
+          type: string
+          example: rent_rent
+        oldVal:
+          type: number
+          example: 22000
+        newVal:
+          type: number
+          example: 22500
+        note:
+          type: string
+          example: "Rent increased"
+
+    SubCategory:
+      type: object
+      required: [key, label, pct]
+      properties:
+        key:
+          type: string
+          example: rent_rent
+        label:
+          type: string
+          example: Rent
+        pct:
+          type: number
+          example: 0.40
+
+    Category:
+      type: object
+      required: [key, label, pct, cls, color, subs]
+      properties:
+        key:
+          type: string
+          example: needs
+        label:
+          type: string
+          example: Needs
+        pct:
+          type: number
+          example: 0.50
+        cls:
+          type: string
+          example: cat-need
+        color:
+          type: string
+          example: "#2563eb"
+        subs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubCategory'
+
+    PostAnalysisRequest:
+      type: object
+      required: [categories]
+      properties:
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+
+    SubCatSummary:
+      type: object
+      properties:
+        key:
+          type: string
+          example: rent_rent
+        label:
+          type: string
+          example: Rent
+        budget:
+          type: number
+          example: 30000
+        actual:
+          type: number
+          example: 22500
+        remaining:
+          type: number
+          example: 7500
+        pctUsed:
+          type: number
+          example: 0.75
+
+    CatSummary:
+      type: object
+      properties:
+        key:
+          type: string
+          example: needs
+        label:
+          type: string
+          example: Needs
+        budget:
+          type: number
+          example: 75000
+        actual:
+          type: number
+          example: 60000
+        remaining:
+          type: number
+          example: 15000
+        pctUsed:
+          type: number
+          example: 0.80
+        subs:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubCatSummary'
+
+    MonthSummary:
+      type: object
+      properties:
+        monthIdx:
+          type: integer
+          example: 5
+        totalSalary:
+          type: number
+          example: 150000
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/CatSummary'
+
+# ── Endpoints ──────────────────────────────────────────────────────────────────
+paths:
+
+  /health:
+    get:
+      summary: Health check
+      tags: [System]
+      responses:
+        '200':
+          description: Server is up
+          content:
+            application/json:
+              example:
+                status: ok
+
+  # ── Groups ────────────────────────────────────────────────────
+  /api/groups:
+    get:
+      summary: List all groups
+      tags: [Groups]
+      responses:
+        '200':
+          description: Array of groups
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  - id: grp_1750000000000
+                    name: "Swati & Avinash · 2026"
+                    members:
+                      - id: p1
+                        name: Swati
+                        color: "#7c3aed"
+                        salary: 80000
+                        familyDeduction: 5000
+                      - id: p2
+                        name: Avinash
+                        color: "#db2777"
+                        salary: 90000
+                        familyDeduction: 5000
+                    splits:
+                      rent_rent:
+                        p1: 60
+                        p2: 40
+                    budgetPcts:
+                      needs:
+                        pct: 0.50
+                        subs:
+                          rent: 0.40
+        '500':
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+
+    post:
+      summary: Create a group
+      tags: [Groups]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostGroupRequest'
+            example:
+              name: "Swati & Avinash · 2026"
+              members:
+                - id: p1
+                  name: Swati
+                  color: "#7c3aed"
+                  salary: 80000
+                  familyDeduction: 5000
+                - id: p2
+                  name: Avinash
+                  color: "#db2777"
+                  salary: 90000
+                  familyDeduction: 5000
+              splits:
+                rent_rent:
+                  p1: 60
+                  p2: 40
+                food_groceries:
+                  p1: 50
+                  p2: 50
+              budgetPcts:
+                needs:
+                  pct: 0.50
+                  subs:
+                    rent: 0.40
+                    food: 0.30
+                    transport: 0.30
+                wants:
+                  pct: 0.30
+                  subs:
+                    dining: 0.40
+                    entertainment: 0.30
+                    shopping: 0.30
+                savings:
+                  pct: 0.20
+                  subs:
+                    emergency: 0.50
+                    investments: 0.50
+      responses:
+        '201':
+          description: Group created
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  id: grp_1750000000000
+                  name: "Swati & Avinash · 2026"
+                  members:
+                    - id: p1
+                      name: Swati
+                      color: "#7c3aed"
+                      salary: 80000
+                      familyDeduction: 5000
+                  splits:
+                    rent_rent:
+                      p1: 60
+                      p2: 40
+                  budgetPcts:
+                    needs:
+                      pct: 0.50
+                      subs:
+                        rent: 0.40
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              example:
+                success: false
+                data: null
+                error: "name: String must contain at least 1 character(s)"
+
+  /api/groups/{groupId}:
+    get:
+      summary: Get a single group
+      tags: [Groups]
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+      responses:
+        '200':
+          description: Group found
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  id: grp_1750000000000
+                  name: "Swati & Avinash · 2026"
+                  members:
+                    - id: p1
+                      name: Swati
+                      color: "#7c3aed"
+                      salary: 80000
+                      familyDeduction: 5000
+                  splits:
+                    rent_rent:
+                      p1: 60
+                      p2: 40
+                  budgetPcts:
+                    needs:
+                      pct: 0.50
+                      subs:
+                        rent: 0.40
+        '404':
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+              example:
+                success: false
+                data: null
+                error: "Group grp_abc not found"
+
+  # ── Actuals ───────────────────────────────────────────────────
+  /api/groups/{groupId}/actuals:
+    get:
+      summary: Get all actuals for a year
+      tags: [Actuals]
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+        - $ref: '#/components/parameters/year'
+      responses:
+        '200':
+          description: Year actuals keyed by monthIdx string
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  months:
+                    "4":
+                      rent_rent: 22500
+                      food_groceries: 11000
+                    "5":
+                      rent_rent: 22500
+                      food_groceries: 12000
+                      util_electricity: 3200
+
+    post:
+      summary: Save / overwrite one month's actuals
+      tags: [Actuals]
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostActualsRequest'
+            example:
+              year: 2026
+              monthIdx: 5
+              actuals:
+                rent_rent: 22500
+                rent_maint: 4500
+                food_groceries: 12000
+                food_dining: 6000
+                util_electricity: 3200
+              savedAt: "2026-06-25T10:30:00.000Z"
+      responses:
+        '200':
+          description: Saved — also auto-creates change log entries for any changed values
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data: null
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              example:
+                success: false
+                data: null
+                error: "monthIdx: Number must be less than or equal to 11"
+
+  # ── Bills ─────────────────────────────────────────────────────
+  /api/groups/{groupId}/bills:
+    get:
+      summary: List bills (all months, or filter by monthIdx)
+      tags: [Bills]
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+        - $ref: '#/components/parameters/monthIdx'
+      responses:
+        '200':
+          description: Array of bill entries
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  - ts: "2026-06-25T10:30:00.000Z"
+                    groupId: grp_1750000000000
+                    fileName: electricity_june.pdf
+                    amount: 3200
+                    subCatKey: util_electricity
+                    subCatLabel: Electricity
+                    monthIdx: 5
+                    note: "June electricity bill"
+
+    post:
+      summary: Submit a bill — adds to actuals and logs a change entry
+      tags: [Bills]
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostBillRequest'
+            example:
+              fileName: electricity_june.pdf
+              amount: 3200
+              subCatKey: util_electricity
+              subCatLabel: Electricity
+              monthIdx: 5
+              year: 2026
+              note: "June electricity bill"
+      responses:
+        '201':
+          description: Bill saved — actuals updated, change log appended
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  ts: "2026-06-25T10:30:00.000Z"
+                  groupId: grp_1750000000000
+                  fileName: electricity_june.pdf
+                  amount: 3200
+                  subCatKey: util_electricity
+                  subCatLabel: Electricity
+                  monthIdx: 5
+                  note: "June electricity bill"
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              example:
+                success: false
+                data: null
+                error: "amount: Number must be greater than 0"
+
+  # ── Logs ──────────────────────────────────────────────────────
+  /api/groups/{groupId}/logs:
+    get:
+      summary: Get change log (all months, or filter by monthIdx)
+      tags: [Logs]
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+        - $ref: '#/components/parameters/monthIdx'
+      responses:
+        '200':
+          description: Array of change entries ordered oldest-first
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  - ts: "2026-06-25T10:30:00.000Z"
+                    source: manual
+                    path: "grp_1750000000000/2026/5/rent_rent"
+                    month: "2026-06-25T10:30:00.000Z"
+                    monthIdx: 5
+                    subCatKey: rent_rent
+                    oldVal: 22000
+                    newVal: 22500
+                    note: "Rent increased"
+                  - ts: "2026-06-25T11:00:00.000Z"
+                    source: bill
+                    path: "grp_1750000000000/2026/5/util_electricity"
+                    month: "5"
+                    monthIdx: 5
+                    subCatKey: util_electricity
+                    oldVal: 0
+                    newVal: 3200
+                    note: "June electricity bill"
+
+  # ── Analysis ──────────────────────────────────────────────────
+  /api/groups/{groupId}/analysis:
+    post:
+      summary: Get budget-vs-actual summary for one month
+      description: |
+        Categories are owned by the frontend config, so you POST them
+        with the request. The server joins them with stored actuals and
+        returns a per-category / per-sub-category breakdown.
+      tags: [Analysis]
+      parameters:
+        - $ref: '#/components/parameters/groupId'
+        - $ref: '#/components/parameters/year'
+        - name: monthIdx
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+            maximum: 11
+            example: 5
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PostAnalysisRequest'
+            example:
+              categories:
+                - key: needs
+                  label: Needs
+                  pct: 0.50
+                  cls: cat-need
+                  color: "#2563eb"
+                  subs:
+                    - key: rent_rent
+                      label: Rent
+                      pct: 0.40
+                    - key: food_groceries
+                      label: Groceries
+                      pct: 0.30
+                    - key: util_electricity
+                      label: Electricity
+                      pct: 0.10
+                    - key: transport_fuel
+                      label: Fuel
+                      pct: 0.20
+                - key: wants
+                  label: Wants
+                  pct: 0.30
+                  cls: cat-want
+                  color: "#d97706"
+                  subs:
+                    - key: food_dining
+                      label: Dining Out
+                      pct: 0.40
+                    - key: ent_streaming
+                      label: Streaming
+                      pct: 0.30
+                    - key: shop_clothing
+                      label: Clothing
+                      pct: 0.30
+                - key: savings
+                  label: Savings
+                  pct: 0.20
+                  cls: cat-save
+                  color: "#16a34a"
+                  subs:
+                    - key: save_emergency
+                      label: Emergency Fund
+                      pct: 0.50
+                    - key: save_invest
+                      label: Investments
+                      pct: 0.50
+      responses:
+        '200':
+          description: Month summary with budget vs actual per category and sub-category
+          content:
+            application/json:
+              example:
+                success: true
+                error: null
+                data:
+                  monthIdx: 5
+                  totalSalary: 160000
+                  categories:
+                    - key: needs
+                      label: Needs
+                      budget: 80000
+                      actual: 42900
+                      remaining: 37100
+                      pctUsed: 0.54
+                      subs:
+                        - key: rent_rent
+                          label: Rent
+                          budget: 32000
+                          actual: 22500
+                          remaining: 9500
+                          pctUsed: 0.70
+                        - key: food_groceries
+                          label: Groceries
+                          budget: 24000
+                          actual: 12000
+                          remaining: 12000
+                          pctUsed: 0.50
+                        - key: util_electricity
+                          label: Electricity
+                          budget: 8000
+                          actual: 3200
+                          remaining: 4800
+                          pctUsed: 0.40
+                        - key: transport_fuel
+                          label: Fuel
+                          budget: 16000
+                          actual: 5200
+                          remaining: 10800
+                          pctUsed: 0.33
+                    - key: wants
+                      label: Wants
+                      budget: 48000
+                      actual: 9800
+                      remaining: 38200
+                      pctUsed: 0.20
+                      subs:
+                        - key: food_dining
+                          label: Dining Out
+                          budget: 19200
+                          actual: 6000
+                          remaining: 13200
+                          pctUsed: 0.31
+                        - key: ent_streaming
+                          label: Streaming
+                          budget: 14400
+                          actual: 1800
+                          remaining: 12600
+                          pctUsed: 0.13
+                        - key: shop_clothing
+                          label: Clothing
+                          budget: 14400
+                          actual: 2000
+                          remaining: 12400
+                          pctUsed: 0.14
+                    - key: savings
+                      label: Savings
+                      budget: 32000
+                      actual: 0
+                      remaining: 32000
+                      pctUsed: 0
+                      subs:
+                        - key: save_emergency
+                          label: Emergency Fund
+                          budget: 16000
+                          actual: 0
+                          remaining: 16000
+                          pctUsed: 0
+                        - key: save_invest
+                          label: Investments
+                          budget: 16000
+                          actual: 0
+                          remaining: 16000
+                          pctUsed: 0
+        '404':
+          description: Group not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>P&L Calculator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link rel="stylesheet" href="main.css" />
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>P&L Calculator</h1>
+    <p>Upload multiple files · Enter current price once · All sections update live</p>
+  </header>
+
+  <!-- Upload section -->
+  <div id="upload-section">
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <div class="icon">📂</div>
+      <h2>Drop your files here or click to browse</h2>
+      <p>Supports .xlsx, .xls, .csv — multiple files at once</p>
+    </div>
+    <input type="file" id="file-input" accept=".xlsx,.xls,.csv" multiple onchange="handleFiles(event)" />
+
+    <div class="file-list" id="file-list"></div>
+
+    <div id="calc-bar" style="display:none;">
+      <div class="calc-bar">
+        <div class="calc-bar-info" id="calc-bar-info"></div>
+        <button class="calc-btn" id="calc-btn" onclick="computeAndShow()">Calculate P&L →</button>
+      </div>
+    </div>
+
+    <div class="notice" style="margin-top:1rem;">
+      <strong>Auto-detected:</strong> Files with an Activity/Type column are handled row-by-row (Match/Purchase = buy, Sell = sell). "Vehicle Description" is recognised as the stock name. "Purchase/Sell price" is auto-detected as price.
+    </div>
+  </div>
+
+  <!-- Column mapper modal -->
+  <div class="modal-overlay" id="modal" style="display:none;" onclick="cancelMapper()">
+    <div class="modal" onclick="event.stopPropagation()">
+      <h2>Map columns</h2>
+      <div class="modal-sub">File: <span class="fname" id="modal-fname"></span></div>
+      <div class="map-grid" id="modal-map-grid"></div>
+      <div class="modal-actions">
+        <button class="btn-secondary" onclick="cancelMapper()">Skip file</button>
+        <button class="btn-primary" onclick="confirmMapper()">Add file →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results-section" style="display:none;">
+    <div class="results-header">
+      <div class="results-meta" id="results-meta"></div>
+      <button class="reset-btn" onclick="goBack()">← Back to files</button>
+    </div>
+
+    <!-- Current price panel — single place to enter prices -->
+    <div class="cur-price-panel" id="cur-price-panel">
+      <h3>Current market price per stock</h3>
+      <div class="sub">Enter today's price — all tiles, monthly chart, and P&L update instantly.</div>
+      <div class="cur-price-grid" id="cur-price-grid"></div>
+    </div>
+
+    <!-- Summary cards -->
+    <div class="summary-row" id="summary-row"></div>
+    <div class="metrics" id="metrics"></div>
+
+    <!-- Filter tabs for unrealised breakdown -->
+    <div class="filter-tabs" id="filter-tabs" style="display:none;">
+      <button class="ftab active" data-filter="all" onclick="setFilter('all')">All</button>
+      <button class="ftab" data-filter="purchase" onclick="setFilter('purchase')">Own Purchase</button>
+      <button class="ftab" data-filter="match" onclick="setFilter('match')">Match / Employer</button>
+    </div>
+
+    <!-- Per-stock holdings -->
+    <div id="holdings-section"></div>
+
+    <!-- Realised trades & dividends -->
+    <div id="realised-section"></div>
+
+    <!-- Monthly chart -->
+    <div id="monthly-section"></div>
+
+    <!-- Transaction log -->
+    <p class="section-title">All transactions</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>File</th><th>Date</th><th>Stock / Vehicle</th><th>Activity</th>
+          <th>Qty</th><th>Price</th><th>Value</th>
+        </tr></thead>
+        <tbody id="tx-body"></tbody>
+      </table>
+    </div>
+    <p style="font-size:12px;color:var(--hint);margin-top:.75rem;text-align:right;">
+      * Realised P&L = sell proceeds − proportional avg buy cost. Unrealised = (current price − avg buy price) × units held.
+    </p>
+  </div>
+</div>
+
+<script src="logic.js" >
+</script>
+</body>
+</html>

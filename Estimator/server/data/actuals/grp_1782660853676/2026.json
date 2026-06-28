@@ -1,0 +1,10 @@
+{
+  "0": {
+    "rent_rent": 2000,
+    "rent_elec": 600,
+    "rent_maint": 3000
+  },
+  "1": {
+    "rent_rent": 8000
+  }
+}
