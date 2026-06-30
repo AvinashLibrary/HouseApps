@@ -1,0 +1,42 @@
+import { Stack } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect } from "react";
+import { LogBox } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
+
+// import { useIconFonts } from "@/src/hooks/use-icon-fonts";
+import { AppProvider } from "@/src/context/AppContext";
+
+LogBox.ignoreAllLogs(true);
+
+// Prevent auto-hide before fonts load
+SplashScreen.preventAutoHideAsync();
+
+export default function RootLayout() {
+  // const [loaded, error] = useIconFonts();
+
+  useEffect(() => {
+   
+  });
+
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <AppProvider>
+          <StatusBar style="dark" />
+
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: {
+                backgroundColor: "#F5F4F0",
+              },
+            }}
+          />
+        </AppProvider>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}

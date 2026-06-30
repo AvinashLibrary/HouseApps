@@ -1,5 +1,7 @@
 import express from 'express';
 import type { Request, Response } from 'express';
+import cors from 'cors';
+
 
 import { config } from './core/config';
 import { JsonStore } from './core/store';
@@ -47,15 +49,17 @@ const analysisService = new AnalysisService(actualsRepo);
 
 // ── express app ───────────────────────────────────────────────────
 const app = express();
-app.use(express.json());
-app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
-app.use((_req: Request, res: Response, next) => {
-  res.header('Access-Control-Allow-Origin', config.allowedOrigin);
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  next();
-});
 
+app.use(express.json());
+app.use(
+  cors({
+    origin: config.allowedOrigin,
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true,
+  })
+);
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/groups', groupRoutes(groupService));
