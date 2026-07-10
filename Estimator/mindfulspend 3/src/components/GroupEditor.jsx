@@ -55,7 +55,7 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
   const isEdit = !!editGroup;
 
   const [name, setName]       = useState('');
-  const [members, setMembers] = useState([{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: '', familyDeduction: '' }]);
+  const [members, setMembers] = useState([{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: null , familyDeduction: null }]);
   // budgetPcts / splits are kept as plain strings while editing (simple text inputs)
   const [budgetPctStrs, setBudgetPctStrs] = useState(() => pctsToStrings(buildDefaultBudgetPcts()));
   const [splitStrs, setSplitStrs]         = useState({});
@@ -69,7 +69,7 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
       setBudgetPctStrs(pctsToStrings(editGroup.budgetPcts));
       setSplitStrs(splitsToStrings(mem, editGroup.splits ?? buildDefaultSplits(mem)));
     } else {
-      const initMembers = [{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: '', familyDeduction: '' }];
+      const initMembers = [{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: null , familyDeduction: null }];
       setName('');
       setMembers(initMembers);
       setBudgetPctStrs(pctsToStrings(buildDefaultBudgetPcts()));
@@ -79,7 +79,7 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
 
   // ── Members ────────────────────────────────────────────────
   const addMember = () => {
-    const m = { id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[members.length % MEMBER_COLORS.length], salary: '', familyDeduction: '' };
+    const m = { id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[members.length % MEMBER_COLORS.length], salary: null, familyDeduction: null };
     const next = [...members, m];
     setMembers(next);
     setSplitStrs(splitsToStrings(next, buildDefaultSplits(next)));
@@ -162,7 +162,11 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
       members.forEach(m => { splits[sub.key][m.id] = toNum(splitStrs[sub.key]?.[m.id]); });
     }));
 
-    const payload = { name: name.trim(), members: members.map(m => ({ ...m })), budgetPcts, splits };
+    const payload = { name: name.trim(), members: members.map(m => ({
+      ...m,
+      salary:           parseFloat(m.salary)           || 0,
+      familyDeduction:  parseFloat(m.familyDeduction)  || 0,
+    })), budgetPcts, splits };
     try {
       if (isEdit) {
         const updated = { ...editGroup, ...payload };

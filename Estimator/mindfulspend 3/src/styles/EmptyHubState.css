@@ -1,0 +1,306 @@
+/* ════════════════════════════════════════════════════════════
+   EmptyHubState — scoped, self-contained light theme.
+   Deliberately breaks from the app's dark surface (--bg/--surface)
+   because this is the very first screen a new user sees, before
+   they have a household group — it should feel like an invitation,
+   not a data screen.
+   ════════════════════════════════════════════════════════════ */
+
+   .ehs-root {
+    --ehs-violet: #7c3aed;
+    --ehs-violet-deep: #5b21b6;
+    --ehs-violet-light: #ede9fe;
+    --ehs-ink: #1e1b3a;
+    --ehs-ink-soft: #4b4768;
+    --ehs-bg: #f8f9ff;
+    --ehs-green: #16a34a;
+    --ehs-radius: 20px;
+  
+    background: var(--ehs-bg);
+    color: var(--ehs-ink);
+    border-radius: 24px;
+    padding: 48px 44px 56px;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+  
+  /* ── Hero layout ── */
+  .ehs-hero {
+    display: grid;
+    grid-template-columns: 1fr 1.05fr;
+    gap: 48px;
+    align-items: center;
+  }
+  
+  .ehs-copy {
+    max-width: 480px;
+  }
+  
+  .ehs-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: var(--ehs-violet-light);
+    color: var(--ehs-violet-deep);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 7px 14px;
+    border-radius: 30px;
+    margin-bottom: 22px;
+  }
+  
+  .ehs-eyebrow-spark {
+    font-size: 0.8rem;
+  }
+  
+  .ehs-headline {
+    font-size: 2.5rem;
+    font-weight: 800;
+    line-height: 1.12;
+    letter-spacing: -0.02em;
+    color: var(--ehs-ink);
+    margin-bottom: 18px;
+  }
+  
+  .ehs-headline-accent {
+    color: var(--ehs-violet);
+  }
+  
+  .ehs-sub {
+    font-size: 1.02rem;
+    line-height: 1.6;
+    color: var(--ehs-ink-soft);
+    margin-bottom: 30px;
+  }
+  
+  .ehs-actions {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  
+  .ehs-btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(135deg, var(--ehs-violet) 0%, var(--ehs-violet-deep) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    padding: 15px 24px;
+    font-size: 0.96rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 8px 20px -6px rgba(124, 58, 237, 0.45);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .ehs-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px -6px rgba(124, 58, 237, 0.55);
+  }
+  
+  .ehs-arrow {
+    transition: transform 0.15s ease;
+  }
+  .ehs-btn-primary:hover .ehs-arrow {
+    transform: translateX(3px);
+  }
+  
+  .ehs-btn-secondary {
+    background: #fff;
+    color: var(--ehs-ink);
+    border: 1px solid #e3e1f5;
+    border-radius: 12px;
+    padding: 15px 24px;
+    font-size: 0.96rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s ease;
+  }
+  .ehs-btn-secondary:hover {
+    border-color: var(--ehs-violet);
+    color: var(--ehs-violet-deep);
+  }
+  
+  /* ── Visual column ── */
+  .ehs-visual {
+    display: grid;
+    grid-template-columns: 1.6fr 1fr;
+    gap: 16px;
+  }
+  
+  .ehs-photo-card {
+    position: relative;
+    border-radius: var(--ehs-radius);
+    overflow: hidden;
+    box-shadow: 0 20px 40px -16px rgba(30, 27, 58, 0.35);
+    aspect-ratio: 4 / 3.1;
+  }
+  
+  .ehs-photo-illustration {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+  
+  .ehs-photo-badge {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(6px);
+    border-radius: 12px;
+    padding: 12px 16px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--ehs-ink);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 220px;
+  }
+  
+  .ehs-live-dot {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--ehs-green);
+    margin-right: 6px;
+  }
+  
+  .ehs-photo-badge-sub {
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--ehs-ink-soft);
+    margin-top: 1px;
+  }
+  
+  .ehs-side-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .ehs-side-card {
+    background: #fff;
+    border: 1px solid #ece9fb;
+    border-radius: var(--ehs-radius);
+    padding: 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 130px;
+  }
+  
+  .ehs-side-card--accent {
+    background: linear-gradient(150deg, var(--ehs-violet) 0%, var(--ehs-violet-deep) 100%);
+    border: none;
+    color: #fff;
+  }
+  
+  .ehs-side-icon {
+    font-size: 1.3rem;
+    margin-bottom: auto;
+    opacity: 0.9;
+  }
+  
+  .ehs-side-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-top: 14px;
+  }
+  
+  .ehs-side-card--accent .ehs-side-title { color: #fff; }
+  
+  .ehs-side-sub {
+    font-size: 0.8rem;
+    color: var(--ehs-ink-soft);
+    margin-top: 2px;
+  }
+  
+  .ehs-side-card--accent .ehs-side-sub {
+    color: rgba(255, 255, 255, 0.82);
+  }
+  
+  /* ── Steps section ── */
+  .ehs-steps {
+    margin-top: 64px;
+    padding-top: 48px;
+    border-top: 1px solid #ece9fb;
+  }
+  
+  .ehs-steps-title {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-bottom: 32px;
+  }
+  
+  .ehs-steps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+  
+  .ehs-step {
+    background: #fff;
+    border: 1px solid #ece9fb;
+    border-radius: var(--ehs-radius);
+    padding: 28px 24px;
+    text-align: center;
+  }
+  
+  .ehs-step-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    margin: 0 auto 16px;
+  }
+  
+  .ehs-step-icon--violet { background: #ede9fe; }
+  .ehs-step-icon--blue   { background: #dbeafe; }
+  .ehs-step-icon--green  { background: #dcfce7; }
+  
+  .ehs-step-eyebrow {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ehs-violet);
+    margin-bottom: 8px;
+  }
+  
+  .ehs-step-name {
+    font-size: 1.08rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  
+  .ehs-step-desc {
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--ehs-ink-soft);
+  }
+  
+  /* ── Responsive ── */
+  @media (max-width: 880px) {
+    .ehs-root { padding: 32px 20px 40px; }
+    .ehs-hero { grid-template-columns: 1fr; }
+    .ehs-copy { max-width: none; }
+    .ehs-headline { font-size: 2rem; }
+    .ehs-visual { grid-template-columns: 1fr; }
+    .ehs-side-cards { flex-direction: row; }
+    .ehs-steps-grid { grid-template-columns: 1fr; }
+  }
+  
+  @media (prefers-reduced-motion: reduce) {
+    .ehs-btn-primary, .ehs-arrow { transition: none; }
+  }

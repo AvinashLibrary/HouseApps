@@ -2,19 +2,51 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
+
+  /* Light Theme */
+
+  --bg: #f8f9ff;
+  --surface: #ffffff;
+  --surface2: #eff4ff;
+
+  --border: #d3e4fe;
+
+  --accent: #630ed4;
+  --accent2: #7c3aed;
+
+  --green: #007650;
+  --amber: #f59e0b;
+  --red: #ba1a1a;
+
+  --text: #0b1c30;
+  --muted: #4a4455;
+
+  --shadow: 0 8px 24px rgba(15,23,42,.08);
+
+  --card-radius: 14px;
+
+  --font: "Inter", sans-serif;
+}
+
+[data-theme="dark"] {
+
   --bg: #0f1117;
   --surface: #1a1d27;
   --surface2: #22263a;
+
   --border: #2e3250;
-  --accent: #6c63ff;
-  --accent2: #a78bfa;
+
+  --accent: #8b7dff;
+  --accent2: #b69cff;
+
   --green: #34d399;
   --amber: #fbbf24;
   --red: #f87171;
+
   --text: #e8eaf6;
   --muted: #8891b4;
-  --card-radius: 14px;
-  --font: 'Inter', system-ui, sans-serif;
+
+  --shadow: 0 8px 24px rgba(0,0,0,.4);
 }
 
 body {
@@ -104,12 +136,13 @@ button { cursor: pointer; }
 /* ── Badge ── */
 .tab-badge {
   margin-left: auto;
-  font-size: 0.7rem;
-  padding: 1px 7px;
-  border-radius: 20px;
+  font-size: .8rem;
+  padding: 3px 7px;
+  border-radius: 20%;
   font-weight: 600;
+  text-align: center
 }
-.badge-amber { background: rgba(251,191,36,0.18); color: var(--amber); }
+.badge-amber { background: rgba(251,191,36,0.18); color: var(--red); }
 .badge-red   { background: rgba(248,113,113,0.18); color: var(--red); }
 .badge-blue  { background: rgba(96,165,250,0.18);  color: #60a5fa; }
 
@@ -463,7 +496,7 @@ tbody tr:hover td { background: rgba(255,255,255,0.02); }
 
 /* ── Hub View ── */
 .hub-wrap {
-  max-width: 900px;
+  max-width: 100%;
   margin: 48px auto;
   padding: 0 24px;
 }
@@ -477,7 +510,7 @@ tbody tr:hover td { background: rgba(255,255,255,0.02); }
 
 .group-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
   margin-top: 24px;
 }
