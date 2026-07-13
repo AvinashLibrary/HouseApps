@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp, BUDGET_STRUCTURE, DETAIL_ITEMS, MEMBER_COLORS } from '../context/AppContext';
+import { useApp, DETAIL_ITEMS, MEMBER_COLORS, getSubLabel, getDetailItems, visibleSubs, visibleCats } from '../context/AppContext';
 
 function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 
@@ -9,6 +9,8 @@ export default function BudgetTab() {
 
   if (!activeGroup) return null;
 
+  const type = activeGroup.type ?? 'household';
+  const showSalary = !['travel', 'occasion', 'roommates'].includes(type);
   const members = activeGroup.members ?? [];
   const totalNet = getTotalNet(activeGroup);
   const totalGross = members.reduce((s, m) => s + (parseFloat(m.salary) || 0), 0);
@@ -17,6 +19,7 @@ export default function BudgetTab() {
 
   return (
     <section className="tab-panel active">
+      {showSalary && (
       <div className="income-row">
         {members.map(m => {
           const gross = parseFloat(m.salary) || 0;
@@ -36,10 +39,13 @@ export default function BudgetTab() {
           <div className="income-card-sub">Gross {fmt(totalGross)}</div>
         </div>
       </div>
+      )}
 
+      {showSalary && (
       <div className="efund-banner">
         🎯 Emergency Fund Target (6 × monthly salary): <strong>{fmt(efund)}</strong>
       </div>
+      )}
 
       <div className="card">
         <div className="card-title">Budget Allocation</div>
@@ -48,7 +54,7 @@ export default function BudgetTab() {
             <thead>
               <tr>
                 <th>Category / Sub-Category</th>
-                <th>% of Salary</th>
+                <th>{showSalary ? '% of Salary' : '% of Pool'}</th>
                 <th>Monthly Amount</th>
                 {members.map(m => (
                   <th key={m.id} style={{ background: m.color, color: '#fff' }}>{m.name}</th>
@@ -56,9 +62,9 @@ export default function BudgetTab() {
               </tr>
             </thead>
             <tbody>
-              {BUDGET_STRUCTURE.map(cat => {
+              {visibleCats(type).map(cat => {
                 const catPct = activeGroup.budgetPcts?.[cat.key]?.pct ?? cat.pct;
-                const catAmt = cat.subs.reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
+                const catAmt = visibleSubs(type, cat).reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
                 return (
                   <>
                     <tr key={cat.key} style={{ background: 'rgba(255,255,255,0.03)' }}>
@@ -67,12 +73,12 @@ export default function BudgetTab() {
                       <td><strong>{fmt(catAmt)}</strong></td>
                       {members.map(m => <td key={m.id} />)}
                     </tr>
-                    {cat.subs.map(sub => {
-                      const subAmt = getSubBudget(activeGroup, cat, sub);
+                    {visibleSubs(type, cat).map(sub => {
                       const subPct = activeGroup.budgetPcts?.[cat.key]?.subs?.[sub.key] ?? sub.pct;
+                      const subAmt = getSubBudget(activeGroup, cat, sub);
                       return (
                         <tr key={sub.key} style={{ fontSize: '0.82rem' }}>
-                          <td style={{ paddingLeft: 24, color: 'var(--muted)' }}>↳ {sub.label}</td>
+                          <td style={{ paddingLeft: 24, color: 'var(--muted)' }}>↳ {getSubLabel(type, sub.key, sub.label)}</td>
                           <td style={{ color: 'var(--muted)' }}>{(catPct * subPct * 100).toFixed(1)}%</td>
                           <td>{fmt(subAmt)}</td>
                           {members.map(m => {
@@ -94,15 +100,15 @@ export default function BudgetTab() {
           {accordionOpen ? '▲' : '▼'} Category Reference (Template)
         </button>
         <div className={`accordion-body ${accordionOpen ? 'open' : ''}`}>
-          {BUDGET_STRUCTURE.map(cat => (
+          {visibleCats(type).map(cat => (
             <div key={cat.key} style={{ marginBottom: 10 }}>
               <div style={{ fontWeight: 600, color: 'var(--text)' }}>
                 {cat.label} ({(cat.pct * 100).toFixed(0)}%)
               </div>
-              {cat.subs.map(sub => (
+              {visibleSubs(activeGroup?.type, cat).map(sub => (
                 <div key={sub.key} style={{ paddingLeft: 16 }}>
-                  • {sub.label} ({(sub.pct * 100).toFixed(0)}% of {cat.label})
-                  {(DETAIL_ITEMS[sub.key] || []).map(item => (
+                  • {getSubLabel(activeGroup?.type, sub.key, sub.label)} ({(sub.pct * 100).toFixed(0)}% of {cat.label})
+                  {getDetailItems(activeGroup?.type, sub.key).map(item => (
                     <div key={item.key} style={{ paddingLeft: 28, fontSize: '0.78rem' }}>– {item.label}</div>
                   ))}
                 </div>

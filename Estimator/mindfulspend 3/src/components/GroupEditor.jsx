@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, MEMBER_COLORS, buildDefaultBudgetPcts, buildDefaultSplits } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MEMBER_COLORS, GROUP_TYPES, getSubLabel, visibleCats, visibleSubs, buildDefaultBudgetPcts, buildDefaultSplits } from '../context/AppContext';
 
 function toNum(v) {
   const n = parseFloat(v);
@@ -54,10 +54,12 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
   const { createGroup, updateGroupLocal, showToast } = useApp();
   const isEdit = !!editGroup;
 
-  const [name, setName]       = useState('');
-  const [members, setMembers] = useState([{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: null , familyDeduction: null }]);
+  const [name, setName]             = useState('');
+  const [type, setType]             = useState('household');
+  const [tripEndDate, setTripEndDate] = useState('');
+  const [members, setMembers]       = useState([{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: null , familyDeduction: null }]);
   // budgetPcts / splits are kept as plain strings while editing (simple text inputs)
-  const [budgetPctStrs, setBudgetPctStrs] = useState(() => pctsToStrings(buildDefaultBudgetPcts()));
+  const [budgetPctStrs, setBudgetPctStrs] = useState(() => pctsToStrings(buildDefaultBudgetPcts('household')));
   const [splitStrs, setSplitStrs]         = useState({});
   const [saving, setSaving]               = useState(false);
 
@@ -65,17 +67,28 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
     if (editGroup) {
       const mem = editGroup.members.map(m => ({ ...m }));
       setName(editGroup.name);
+      setType(editGroup.type ?? 'household');
+      setTripEndDate(editGroup.tripEndDate ?? '');
       setMembers(mem);
       setBudgetPctStrs(pctsToStrings(editGroup.budgetPcts));
       setSplitStrs(splitsToStrings(mem, editGroup.splits ?? buildDefaultSplits(mem)));
     } else {
       const initMembers = [{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: null , familyDeduction: null }];
       setName('');
+      setType('household');
+      setTripEndDate('');
       setMembers(initMembers);
-      setBudgetPctStrs(pctsToStrings(buildDefaultBudgetPcts()));
+      setBudgetPctStrs(pctsToStrings(buildDefaultBudgetPcts('household')));
       setSplitStrs(splitsToStrings(initMembers, buildDefaultSplits(initMembers)));
     }
   }, [editGroup]);
+
+  // ── Reset budget pcts when type changes (new group only) ──
+  useEffect(() => {
+    if (!editGroup) {
+      setBudgetPctStrs(pctsToStrings(buildDefaultBudgetPcts(type)));
+    }
+  }, [type]); // eslint-disable-line
 
   // ── Members ────────────────────────────────────────────────
   const addMember = () => {
@@ -131,18 +144,18 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
   const catPctNum = (catKey) => toNum(budgetPctStrs[catKey]?.pct);
   const subPctNum = (catKey, subKey) => toNum(budgetPctStrs[catKey]?.subs?.[subKey]);
 
-  const catTotal = Math.round(BUDGET_STRUCTURE.reduce((s, cat) => s + catPctNum(cat.key), 0) * 10) / 10;
+  const catTotal = Math.round(visibleCats(type).reduce((s, cat) => s + catPctNum(cat.key), 0) * 10) / 10;
 
   // ── Validation ─────────────────────────────────────────────
   const validate = () => {
     if (!name.trim()) { showToast('⚠ Enter a group name'); return false; }
     if (members.some(m => !m.name.trim())) { showToast('⚠ All members need a name'); return false; }
     if (Math.round(catTotal) !== 100) { showToast(`⚠ Category % sum to ${catTotal.toFixed(1)}% — must be 100%`); return false; }
-    for (const cat of BUDGET_STRUCTURE) {
-      const subSum = Math.round(cat.subs.reduce((s, sub) => s + subPctNum(cat.key, sub.key), 0) * 10) / 10;
+    for (const cat of visibleCats(type)) {
+      const subSum = Math.round(visibleSubs(type, cat).reduce((s, sub) => s + subPctNum(cat.key, sub.key), 0) * 10) / 10;
       if (Math.round(subSum) !== 100) { showToast(`⚠ Sub-categories of "${cat.label}" sum to ${subSum.toFixed(1)}%`); return false; }
     }
-    const badRows = BUDGET_STRUCTURE.flatMap(c => c.subs).filter(sub => {
+    const badRows = visibleCats(type).flatMap(c => visibleSubs(type, c)).filter(sub => {
       const sum = members.reduce((s, m) => s + toNum(splitStrs[sub.key]?.[m.id]), 0);
       return Math.round(sum) !== 100;
     });
@@ -162,7 +175,7 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
       members.forEach(m => { splits[sub.key][m.id] = toNum(splitStrs[sub.key]?.[m.id]); });
     }));
 
-    const payload = { name: name.trim(), members: members.map(m => ({
+    const payload = { name: name.trim(), type, tripEndDate: type === 'travel' ? tripEndDate : null, members: members.map(m => ({
       ...m,
       salary:           parseFloat(m.salary)           || 0,
       familyDeduction:  parseFloat(m.familyDeduction)  || 0,
@@ -193,32 +206,89 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
       {/* Name */}
       <div className="editor-section">
         <div className="editor-section-title">Group Name</div>
-        <input className="modal-inp" style={{ maxWidth: 340 }} placeholder="e.g. Mumbai Flat 2026"
+        <input disabled={isEdit} className="modal-inp" style={{ maxWidth: 340 }} placeholder="e.g. Mumbai Flat 2026"
           value={name} onChange={e => setName(e.target.value)} />
+      </div>
+
+      {/* Type */}
+      <div className="editor-section">
+        <div className="editor-section-title">Group Type</div>
+        <div className="group-type-grid">
+          {GROUP_TYPES.map(gt => (
+            <button
+              key={gt.key}
+              disabled = {isEdit && type !== gt.key}
+              className={`group-type-btn${type === gt.key ? ' selected' : ''}`}
+              onClick={() => setType(gt.key)}
+              type="button"
+            >
+              <span className="gt-icon">{gt.icon}</span>
+              <span className="gt-label">{gt.label}</span>
+              <span className="gt-desc">{gt.desc}</span>
+            </button>
+          ))}
+        </div>
+        {type === 'travel' && (
+          <div style={{ marginTop: 12 }}>
+            <div className="editor-section-title" style={{ fontSize: '0.78rem', marginBottom: 4 }}>Trip End Date</div>
+            <input className="modal-inp" type="date" style={{ maxWidth: 200 }}
+              value={tripEndDate} onChange={e => setTripEndDate(e.target.value)} />
+          </div>
+        )}
+        {type === 'occasion' && (
+          <p style={{ marginTop: 10, fontSize: '0.75rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+            💡 Budget categories are mapped for occasions — <strong>Housing = Venue</strong> · <strong>Utilities = Decor</strong> · <strong>Entertainment = Photography &amp; Music</strong>
+          </p>
+        )}
       </div>
 
       {/* Members */}
       <div className="editor-section">
         <div className="editor-section-title">Members</div>
-        <div className="member-row-header">
-          <span>Name</span><span>Gross Salary</span><span>Family Deduction</span><span>Net</span><span />
-        </div>
+
+        {/* Header row — columns depend on type */}
+        {type === 'roommates' ? (
+          <div className="member-row-header member-row-name-only">
+            <span>Name</span><span />
+          </div>
+        ) : ['travel', 'occasion'].includes(type) ? (
+          <div className="member-row-header member-row-contribution">
+            <span>Name</span><span>Contribution (₹)</span><span />
+          </div>
+        ) : (
+          <div className="member-row-header">
+            <span>Name</span><span>Gross Salary</span><span>Family Deduction</span><span>Net</span><span />
+          </div>
+        )}
+
         {members.map((m) => (
-          <div className="member-row" key={m.id}>
+          <div className={`member-row${type === 'roommates' ? ' member-row-name-only' : ['travel','occasion'].includes(type) ? ' member-row-contribution' : ''}`} key={m.id}>
             <input className="modal-inp" placeholder="Name" value={m.name}
               onChange={e => updateMember(m.id, 'name', e.target.value)} />
-            <input className="modal-inp" placeholder="₹ Gross" value={m.salary}
-              onChange={e => updateMember(m.id, 'salary', e.target.value)} />
-            <input className="modal-inp" placeholder="₹ Deduction" value={m.familyDeduction}
-              onChange={e => updateMember(m.id, 'familyDeduction', e.target.value)} />
-            <div className="member-net">₹{calcNet(m.salary, m.familyDeduction).toLocaleString('en-IN')}</div>
+            {type === 'roommates' ? null : ['travel', 'occasion'].includes(type) ? (
+              <input className="modal-inp" placeholder="₹ Amount" value={m.salary}
+                onChange={e => updateMember(m.id, 'salary', e.target.value)} />
+            ) : (
+              <>
+                <input className="modal-inp" placeholder="₹ Gross" value={m.salary}
+                  onChange={e => updateMember(m.id, 'salary', e.target.value)} />
+                <input className="modal-inp" placeholder="₹ Deduction" value={m.familyDeduction}
+                  onChange={e => updateMember(m.id, 'familyDeduction', e.target.value)} />
+                <div className="member-net">₹{calcNet(m.salary, m.familyDeduction).toLocaleString('en-IN')}</div>
+              </>
+            )}
             <button className="btn-remove" onClick={() => removeMember(m.id)}>✕</button>
           </div>
         ))}
         <button className="btn-add-member" onClick={addMember}>+ Add Member</button>
         {validMembers.length > 0 && (
           <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--green)' }}>
-            Combined net: ₹{validMembers.reduce((s, m) => s + calcNet(m.salary, m.familyDeduction), 0).toLocaleString('en-IN')}/month
+            {type === 'travel' || type === 'occasion'
+              ? `Total pool: ₹${validMembers.reduce((s, m) => s + (parseFloat(m.salary) || 0), 0).toLocaleString('en-IN')}`
+              : type === 'roommates'
+              ? `${validMembers.length} member${validMembers.length !== 1 ? 's' : ''}`
+              : `Combined net: ₹${validMembers.reduce((s, m) => s + calcNet(m.salary, m.familyDeduction), 0).toLocaleString('en-IN')}/month`
+            }
           </div>
         )}
       </div>
@@ -238,12 +308,14 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
               <th style={{ textAlign: 'left' }}>Category / Sub-Category</th>
               <th style={{ textAlign: 'center', width: 90 }}>% of Total</th>
               <th style={{ textAlign: 'center', width: 90 }}>% within Cat</th>
-              <th style={{ textAlign: 'left', fontSize: '0.7rem', opacity: 0.75 }}>Effective % of salary</th>
+              <th style={{ textAlign: 'left', fontSize: '0.7rem', opacity: 0.75 }}>
+                {['travel','occasion'].includes(type) ? 'Effective % of pool' : 'Effective % of salary'}
+              </th>
             </tr></thead>
             <tbody>
-              {BUDGET_STRUCTURE.map(cat => {
+              {visibleCats(type).map(cat => {
                 const catPct   = catPctNum(cat.key);
-                const subSum   = Math.round(cat.subs.reduce((s, sub) => s + subPctNum(cat.key, sub.key), 0) * 10) / 10;
+                const subSum   = Math.round(visibleSubs(type, cat).reduce((s, sub) => s + subPctNum(cat.key, sub.key), 0) * 10) / 10;
                 const subSumOk = Math.round(subSum) === 100;
                 return [
                   <tr key={cat.key} style={{ background: 'rgba(255,255,255,0.03)' }}>
@@ -258,13 +330,13 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
                         {subSumOk ? '✓ 100%' : `✗ ${subSum.toFixed(1)}%`}
                       </span>
                     </td>
-                    <td style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>{catPct.toFixed(1)}% of salary</td>
+                    <td style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>{catPct.toFixed(1)}% of {['travel','occasion'].includes(type) ? 'pool' : 'salary'}</td>
                   </tr>,
-                  ...cat.subs.map(sub => {
+                  ...visibleSubs(type, cat).map(sub => {
                     const subPct = subPctNum(cat.key, sub.key);
                     return (
                       <tr key={sub.key}>
-                        <td style={{ paddingLeft: 24, color: 'var(--muted)', fontSize: '0.8rem' }}>↳ {sub.label}</td>
+                        <td style={{ paddingLeft: 24, color: 'var(--muted)', fontSize: '0.8rem' }}>↳ {getSubLabel(type, sub.key, sub.label)}</td>
                         <td />
                         <td style={{ textAlign: 'center' }}>
                           <input className="modal-inp" style={{ width: 68, textAlign: 'center' }}
@@ -272,7 +344,7 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
                             onChange={e => updateSubPct(cat.key, sub.key, e.target.value)} />
                         </td>
                         <td style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>
-                          {(catPct * subPct / 100).toFixed(1)}% of salary
+                          {(catPct * subPct / 100).toFixed(1)}% of {['travel','occasion'].includes(type) ? 'pool' : 'salary'}
                         </td>
                       </tr>
                     );
@@ -306,15 +378,15 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
                 <th>Total</th>
               </tr></thead>
               <tbody>
-                {BUDGET_STRUCTURE.map(cat => [
+                {visibleCats(type).map(cat => [
                   <tr key={`hdr-${cat.key}`} style={{ background: 'rgba(255,255,255,0.03)' }}>
                     <td colSpan={validMembers.length + 2}><strong>{cat.label}</strong></td>
                   </tr>,
-                  ...cat.subs.map(sub => {
+                  ...visibleSubs(type, cat).map(sub => {
                     const rowTotal = validMembers.reduce((s, m) => s + toNum(splitStrs[sub.key]?.[m.id]), 0);
                     return (
                       <tr key={sub.key}>
-                        <td style={{ fontSize: '0.82rem' }}>{sub.label}</td>
+                        <td style={{ fontSize: '0.82rem' }}>{getSubLabel(type, sub.key, sub.label)}</td>
                         {validMembers.map(m => (
                           <td key={m.id}>
                             <input className="modal-inp" style={{ width: 68, textAlign: 'center' }}

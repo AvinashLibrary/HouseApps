@@ -1,4 +1,4 @@
-import { useApp, BUDGET_STRUCTURE, MONTHS } from '../context/AppContext';
+import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats } from '../context/AppContext';
 
 function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 function fmtDiff(n) { return (n >= 0 ? '+' : '-') + fmt(Math.abs(n)).slice(1); }
@@ -9,7 +9,9 @@ export default function AnalysisTab({ onNavigateToRow }) {
   if (!activeGroup) return null;
 
   const monthHasData = (mi) => {
-    return BUDGET_STRUCTURE.some(cat => cat.subs.some(sub => getSubActualMonth(sub.key, mi) > 0));
+    return visibleCats(activeGroup.type).some(cat =>
+      visibleSubs(activeGroup.type, cat).some(sub => getSubActualMonth(sub.key, mi) > 0)
+    );
   };
 
   let totalSaved = 0, totalOver = 0;
@@ -37,12 +39,12 @@ export default function AnalysisTab({ onNavigateToRow }) {
               </tr>
             </thead>
             <tbody>
-              {BUDGET_STRUCTURE.map(cat => (
+              {visibleCats(activeGroup.type).map(cat => (
                 <>
                   <tr key={cat.key} style={{ background: 'rgba(255,255,255,0.03)' }}>
                     <td colSpan={3 + MONTHS.length}><strong>{cat.label}</strong></td>
                   </tr>
-                  {cat.subs.map(sub => {
+                  {visibleSubs(activeGroup.type, cat).map(sub => {
                     const budget = getSubBudget(activeGroup, cat, sub);
                     let balance = 0;
                     const monthCells = MONTHS.map((_, mi) => {
@@ -55,7 +57,7 @@ export default function AnalysisTab({ onNavigateToRow }) {
 
                     return (
                       <tr key={sub.key} style={{ cursor: 'pointer' }} onClick={() => onNavigateToRow && onNavigateToRow(sub.key)}>
-                        <td>{sub.label}</td>
+                        <td>{getSubLabel(activeGroup.type, sub.key, sub.label)}</td>
                         <td style={{ color: 'var(--muted)' }}>{fmt(budget)}</td>
                         {monthCells.map((cell, mi) => (
                           <td key={mi} className={cell.actual === 0 ? '' : cell.diff >= 0 ? 'under-budget' : 'over-budget'} style={{ fontSize: '0.78rem' }}>

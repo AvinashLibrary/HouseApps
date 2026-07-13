@@ -1,7 +1,9 @@
 import '../styles/GroupCard.css';
+import { GROUP_TYPES } from '../context/AppContext';
 
 export default function GroupCard({ group, onOpen, onEdit, onDelete }) {
   const memberCount = group.members?.length ?? 0;
+  const groupType = GROUP_TYPES.find(gt => gt.key === (group.type ?? 'household')) ?? GROUP_TYPES[0];
 
   const netTotal = (group.members ?? []).reduce((s, m) => {
     const gross = parseFloat(m.salary) || 0;
@@ -13,13 +15,17 @@ export default function GroupCard({ group, onOpen, onEdit, onDelete }) {
     <div className="gc-card">
       {/* Top: icon + active badge */}
       <div className="gc-top">
-        <div className="gc-icon">🏠</div>
+        <div className="gc-icon">{groupType.icon}</div>
         <span className="gc-badge">ACTIVE</span>
       </div>
 
-      {/* Name + member count */}
+      {/* Name + type + member count */}
       <div className="gc-name">{group.name}</div>
-      <div className="gc-members">{memberCount} Member{memberCount !== 1 ? 's' : ''}</div>
+      <div className="gc-members">
+        <span className="gc-type-label">{groupType.label}</span>
+        <span className="gc-dot">·</span>
+        {memberCount} Member{memberCount !== 1 ? 's' : ''}
+      </div>
 
       <div className="gc-divider" />
 

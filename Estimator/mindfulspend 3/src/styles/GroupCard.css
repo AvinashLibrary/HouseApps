@@ -56,6 +56,18 @@
   font-size: 0.82rem;
   color: #64748b;
   margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gc-type-label {
+  font-weight: 600;
+  color: #7c3aed;
+}
+
+.gc-dot {
+  color: #cbd5e1;
 }
 
 /* Divider */

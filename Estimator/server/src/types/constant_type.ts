@@ -112,6 +112,7 @@ const BudgetPctsSchema = z.record(z.string(), CategoryBudgetPctSchema);
 export const PostGroupSchema = z.object({
   name: z.string().min(1).max(100),
   members: z.array(MemberSchema).min(1),
+  type:z.string(),
   splits: SplitsSchema,
   budgetPcts: BudgetPctsSchema,
 });
@@ -122,6 +123,7 @@ export type PostGroupRequest = z.infer<typeof PostGroupSchema>;
 export interface Group {
   id: string;
   name: string;
+  type: string;
   members: Member[];
   splits: Splits;
   budgetPcts: BudgetPcts;

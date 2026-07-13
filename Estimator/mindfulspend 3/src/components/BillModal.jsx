@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, MONTHS } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs, visibleCats } from '../context/AppContext';
 
 export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const { activeGroup, submitBill, showToast } = useApp();
@@ -33,7 +33,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
     let subCatLabel = subCatKey;
     for (const cat of BUDGET_STRUCTURE)
       for (const sub of cat.subs)
-        if (sub.key === subCatKey) subCatLabel = sub.label;
+        if (sub.key === subCatKey) subCatLabel = getSubLabel(activeGroup?.type, sub.key, sub.label);
 
     await submitBill(activeGroup.id, {
       fileName: fileName || 'No file selected',
@@ -75,7 +75,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
               <option value="">Select…</option>
               {BUDGET_STRUCTURE.map(cat => (
                 <optgroup label={cat.label} key={cat.key}>
-                  {cat.subs.map(sub => <option key={sub.key} value={sub.key}>{sub.label}</option>)}
+                  {visibleSubs(activeGroup?.type, cat).map(sub => <option key={sub.key} value={sub.key}>{getSubLabel(activeGroup?.type, sub.key, sub.label)}</option>)}
                 </optgroup>
               ))}
             </select>

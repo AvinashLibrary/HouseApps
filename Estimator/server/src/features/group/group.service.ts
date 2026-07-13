@@ -21,6 +21,7 @@ export class GroupService {
       members: dto.members,
       splits: dto.splits,
       budgetPcts: dto.budgetPcts,
+      type:dto.type,
     };
     return this.repo.save(group);
   }

@@ -39,17 +39,148 @@ export const MEMBER_COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#60a5fa',
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const ACTIVE_YEAR = 2026;
 
+export const GROUP_TYPES = [
+  { key: 'household',  label: 'Household',  icon: '🏠', desc: 'Shared household bills & budget' },
+  { key: 'roommates',  label: 'Roommates',  icon: '🛋️', desc: 'Flatmates splitting rent & expenses' },
+  { key: 'couple',     label: 'Couple',     icon: '💑', desc: 'Partners managing shared finances' },
+  { key: 'travel',     label: 'Travel',     icon: '✈️', desc: 'Group trip expenses' },
+  { key: 'family',     label: 'Family',     icon: '👨‍👩‍👧‍👦', desc: 'Family pooled budget' },
+  { key: 'occasion',   label: 'Occasion',   icon: '🎉', desc: 'Wedding, ceremony or celebration' },
+];
+
 // ── Helper: build default budget pcts object ────────────────
-export function buildDefaultBudgetPcts() {
+// Pass a group type key to get type-specific defaults; omit for household defaults.
+const TYPE_BUDGET_DEFAULTS = {
+  household: {
+    needs: { pct: 0.50, subs: { housing: 0.40, food: 0.20, transport: 0.15, utilities: 0.15, health: 0.10 } },
+    wants: { pct: 0.30, subs: { entertainment: 0.40, dining: 0.30, shopping: 0.30 } },
+    savings: { pct: 0.20, subs: { emergency: 0.50, investments: 0.50 } },
+  },
+  roommates: {
+    needs: { pct: 0.80, subs: { housing: 0.30, food: 0.35, transport: 0.10, utilities: 0.20, health: 0.05 } },
+    wants: { pct: 0.20, subs: { entertainment: 0.25, dining: 0.45, shopping: 0.30 } }
+  },
+  couple: {
+    needs: { pct: 0.45, subs: { housing: 0.40, food: 0.20, transport: 0.15, utilities: 0.15, health: 0.10 } },
+    wants: { pct: 0.30, subs: { entertainment: 0.30, dining: 0.40, shopping: 0.30 } },
+    savings: { pct: 0.25, subs: { emergency: 0.50, investments: 0.50 } },
+  },
+  travel: {
+    needs: { pct: 0.70, subs: { housing: 0.20, food: 0.30, transport: 0.35, utilities: 0.05, health: 0.10 } },
+    wants: { pct: 0.25, subs: { entertainment: 0.55, dining: 0.35, shopping: 0.10 } },
+    savings: { pct: 0.05, subs: { emergency: 1.00} },
+  },
+  family: {
+    needs: { pct: 0.60, subs: { housing: 0.30, food: 0.20, transport: 0.15, utilities: 0.15, health: 0.20 } },
+    wants: { pct: 0.20, subs: { entertainment: 0.35, dining: 0.30, shopping: 0.35 } },
+    savings: { pct: 0.20, subs: { emergency: 0.50, investments: 0.50 } },
+  },
+  occasion: {
+    needs: { pct: 0.65, subs: { housing: 0.35, food: 0.30, transport: 0.10, utilities: 0.20, health: 0.05 } },
+    wants: { pct: 0.30, subs: { entertainment: 0.55, dining: 0.30, shopping: 0.15 } },
+    savings: { pct: 0.05, subs: { emergency: 1.00} },
+  },
+};
+
+export function buildDefaultBudgetPcts(type) {
+  const defaults = TYPE_BUDGET_DEFAULTS[type] ?? TYPE_BUDGET_DEFAULTS.household;
+  const fallback = TYPE_BUDGET_DEFAULTS.household;
+  const hidden = TYPE_HIDDEN_SUBS[type] ?? [];
   const pcts = {};
   BUDGET_STRUCTURE.forEach(cat => {
-    pcts[cat.key] = { pct: cat.pct, subs: {} };
-    cat.subs.forEach(sub => { pcts[cat.key].subs[sub.key] = sub.pct; });
+    const catDef = defaults[cat.key] ?? fallback[cat.key];
+    pcts[cat.key] = { pct: catDef.pct, subs: {} };
+    cat.subs.forEach(sub => {
+      pcts[cat.key].subs[sub.key] = hidden.includes(sub.key)
+        ? 0
+        : (catDef.subs[sub.key] ?? fallback[cat.key].subs[sub.key]);
+    });
   });
   return pcts;
 }
 
-// ── Helper: build equal splits for members ──────────────────
+// ── Sub-category label overrides per group type ─────────────
+const TYPE_LABEL_OVERRIDES = {
+  travel: {
+    housing: 'Accommodation',
+    utilities: 'Misc / SIM',
+  },
+  roommates: {
+    food: 'Groceries & Supplies',
+    utilities: 'Maid & Utilities',
+    shopping: 'Home Supplies',
+  },
+  occasion: {
+    housing: 'Venue',
+    utilities: 'Decor & Setup',
+    entertainment: 'Photography & Music',
+    dining: 'Catering',
+    shopping: 'Gifts & Favours',
+    health: 'Misc',
+  },
+};
+
+export function getSubLabel(type, subKey, defaultLabel) {
+  return TYPE_LABEL_OVERRIDES[type]?.[subKey] ?? defaultLabel;
+}
+
+// Sub-categories to hide entirely for a given type
+export const TYPE_HIDDEN_SUBS = {
+  roommates: ['emergency', 'investments'],
+  travel:    ['investments'],
+  occasion:  ['investments'],
+};
+
+export const TYPE_HIDDEN_CATS = {
+  roommates: ['savings'],
+};
+
+export function visibleSubs(type, cat) {
+  const hidden = TYPE_HIDDEN_SUBS[type] ?? [];
+  return cat.subs.filter(sub => !hidden.includes(sub.key));
+}
+
+export function visibleCats(type) {
+  const hidden = TYPE_HIDDEN_CATS[type] ?? [];
+  return BUDGET_STRUCTURE.filter(cat => !hidden.includes(cat.key));
+}
+
+// ── Detail item overrides per group type ────────────────────
+const TYPE_DETAIL_ITEMS = {
+  travel: {
+    housing:       [{ key: 'housing_rent', label: 'Hotel/Hostel' }, { key: 'housing_maint', label: 'Airbnb/Homestay' }, { key: 'housing_other', label: 'Other' }],
+    food:          [{ key: 'food_grocery', label: 'Restaurant' }, { key: 'food_home', label: 'Street Food' }, { key: 'food_other', label: 'Groceries' }],
+    transport:     [{ key: 'transport_fuel', label: 'Flights/Trains' }, { key: 'transport_cab', label: 'Local Transport' }, { key: 'transport_other', label: 'Cab/Taxi' }],
+    utilities:     [{ key: 'util_electric', label: 'SIM/Data' }, { key: 'util_internet', label: 'Misc' }, { key: 'util_gas', label: 'Other' }],
+    health:        [{ key: 'health_ins', label: 'Travel Insurance' }, { key: 'health_med', label: 'Medicine' }, { key: 'health_gym', label: 'Other' }],
+    entertainment: [{ key: 'ent_ott', label: 'Activities' }, { key: 'ent_games', label: 'Entry Tickets' }, { key: 'ent_events', label: 'Tours/Guides' }],
+    dining:        [{ key: 'dining_rest', label: 'Fine Dining' }, { key: 'dining_delivery', label: 'Cafes' }, { key: 'dining_cafe', label: 'Street Food' }],
+    shopping:      [{ key: 'shop_clothing', label: 'Souvenirs' }, { key: 'shop_home', label: 'Clothing' }, { key: 'shop_gifts', label: 'Other' }],
+    emergency:     [{ key: 'emerg_fund', label: 'Emergency Reserve' }],
+  },
+  roommates: {
+    food:          [{ key: 'food_grocery', label: 'Vegetables & Fruits' }, { key: 'food_home', label: 'Groceries' }, { key: 'food_other', label: 'Cleaning Items' }],
+    utilities:     [{ key: 'util_electric', label: 'Maid' }, { key: 'util_internet', label: 'Electricity' }, { key: 'util_gas', label: 'Internet' }, { key: 'util_mobile', label: 'Gas/Water' }],
+    shopping:      [{ key: 'shop_clothing', label: 'Kitchen Items' }, { key: 'shop_home', label: 'Home Essentials' }, { key: 'shop_gifts', label: 'Other' }],
+    entertainment: [{ key: 'ent_ott', label: 'OTT/Streaming' }, { key: 'ent_games', label: 'Games' }, { key: 'ent_events', label: 'Outings' }],
+    dining:        [{ key: 'dining_rest', label: 'Restaurants' }, { key: 'dining_delivery', label: 'Food Delivery' }, { key: 'dining_cafe', label: 'Cafes' }],
+  },
+  occasion: {
+    housing:       [{ key: 'housing_rent', label: 'Venue Booking' }, { key: 'housing_maint', label: 'Advance Payment' }, { key: 'housing_other', label: 'Other' }],
+    food:          [{ key: 'food_grocery', label: 'Catering Contract' }, { key: 'food_home', label: 'Food & Beverages' }, { key: 'food_other', label: 'Other' }],
+    transport:     [{ key: 'transport_fuel', label: 'Guest Transport' }, { key: 'transport_cab', label: 'Baraat/Procession' }, { key: 'transport_other', label: 'Other' }],
+    utilities:     [{ key: 'util_electric', label: 'Stage/Mandap' }, { key: 'util_internet', label: 'Flowers & Decor' }, { key: 'util_gas', label: 'Lighting' }, { key: 'util_mobile', label: 'Other' }],
+    health:        [{ key: 'health_ins', label: 'Miscellaneous 1' }, { key: 'health_med', label: 'Miscellaneous 2' }, { key: 'health_gym', label: 'Other' }],
+    entertainment: [{ key: 'ent_ott', label: 'Photographer' }, { key: 'ent_games', label: 'Videographer' }, { key: 'ent_events', label: 'DJ/Band' }],
+    dining:        [{ key: 'dining_rest', label: 'Catering Vendor' }, { key: 'dining_delivery', label: 'Beverages' }, { key: 'dining_cafe', label: 'Other' }],
+    shopping:      [{ key: 'shop_clothing', label: 'Return Gifts' }, { key: 'shop_home', label: 'Outfits' }, { key: 'shop_gifts', label: 'Accessories' }],
+    emergency:     [{ key: 'emerg_fund', label: 'Contingency Fund' }],
+  },
+};
+
+export function getDetailItems(type, subKey) {
+  return TYPE_DETAIL_ITEMS[type]?.[subKey] ?? DETAIL_ITEMS[subKey] ?? [];
+}
 export function buildDefaultSplits(members) {
   const splits = {};
   BUDGET_STRUCTURE.forEach(cat => cat.subs.forEach(sub => {
@@ -222,7 +353,8 @@ export function AppProvider({ children }) {
     const { amount, subCatKey, subCatLabel, monthIdx, note, fileName } = billPayload;
 
     // Optimistically update actuals for first detail item in that sub
-    const firstItem = (DETAIL_ITEMS[subCatKey] || [])[0];
+    const groupType = groups.find(g => g.id === groupId)?.type;
+    const firstItem = getDetailItems(groupType, subCatKey)[0];
     if (firstItem) {
       const k = `${firstItem.key}-${monthIdx}`;
       setActuals(prev => ({ ...prev, [k]: (prev[k] || 0) + amount }));
@@ -251,7 +383,12 @@ export function AppProvider({ children }) {
   }, [actuals]);
 
   const getSubActualMonth = useCallback((subKey, monthIdx) => {
-    return (DETAIL_ITEMS[subKey] || []).reduce((s, item) => s + (actuals[`${item.key}-${monthIdx}`] ?? 0), 0);
+    // Sum all known item keys for this sub across all types to avoid missing saved data
+    const allKeys = new Set([
+      ...(DETAIL_ITEMS[subKey] || []).map(i => i.key),
+      ...Object.values(TYPE_DETAIL_ITEMS).flatMap(t => (t[subKey] || []).map(i => i.key)),
+    ]);
+    return [...allKeys].reduce((s, key) => s + (actuals[`${key}-${monthIdx}`] ?? 0), 0);
   }, [actuals]);
 
   const getCatActualMonth = useCallback((catKey, monthIdx) => {

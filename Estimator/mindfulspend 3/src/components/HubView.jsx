@@ -45,7 +45,8 @@ export default function HubView({ onOpenGroup }) {
         <EmptyHubState onCreateGroup={handleNew} />
       )}
 
-      <div className="group-grid">
+{!showEditor && (
+      <div  className="group-grid">
         {groups.map(g => (
           <GroupCard
             key={g.id}
@@ -55,7 +56,9 @@ export default function HubView({ onOpenGroup }) {
             onDelete={handleDelete}
           />
         ))}
+        
       </div>
+       )}
     </div>
     </>
   );

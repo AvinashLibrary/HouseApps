@@ -553,9 +553,14 @@ tbody tr:hover td { background: rgba(255,255,255,0.02); }
 .editor-section { margin-bottom: 24px; }
 .editor-section-title { font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 10px; }
 
-.member-row-header {
-  display: grid;
-  grid-template-columns: 1fr 140px 140px 100px 36px;
+.member-row-header.member-row-name-only,
+.member-row.member-row-name-only {
+  grid-template-columns: 1fr 36px;
+}
+
+.member-row-header.member-row-contribution,
+.member-row.member-row-contribution {
+  grid-template-columns: 1fr 160px 36px;
   gap: 8px;
   font-size: 0.72rem;
   color: var(--muted);
@@ -617,6 +622,34 @@ tbody tr:hover td { background: rgba(255,255,255,0.02); }
 
 .split-warn { color: var(--amber); }
 .split-ok   { color: var(--green); }
+
+/* Group type selector */
+.group-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.group-type-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+.group-type-btn:hover { border-color: var(--accent); }
+.group-type-btn.selected {
+  border-color: var(--accent);
+  background: rgba(124,58,237,0.08);
+}
+.gt-icon  { font-size: 1.4rem; line-height: 1; margin-bottom: 2px; }
+.gt-label { font-size: 0.82rem; font-weight: 700; color: var(--text); }
+.gt-desc  { font-size: 0.7rem; color: var(--muted); line-height: 1.3; }
 
 .editor-footer {
   display: flex; justify-content: flex-end; gap: 10px;

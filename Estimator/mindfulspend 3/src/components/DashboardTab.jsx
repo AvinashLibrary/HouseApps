@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp, BUDGET_STRUCTURE, MONTHS } from '../context/AppContext';
+import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats } from '../context/AppContext';
 
 const MOTIVATIONS = [
   'Focusing on one month at a time brings clarity.',
@@ -29,8 +29,8 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
   const totalNet = getTotalNet(activeGroup);
 
   let totalSpent = 0, totalBudget = 0;
-  BUDGET_STRUCTURE.forEach(cat => {
-    cat.subs.forEach(sub => {
+  visibleCats(activeGroup.type).forEach(cat => {
+    visibleSubs(activeGroup.type, cat).forEach(sub => {
       totalBudget += getSubBudget(activeGroup, cat, sub);
       totalSpent  += getSubActualMonth(sub.key, monthIdx);
     });
@@ -94,8 +94,8 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
       <p className="drag-hint">⊙ Click a category to expand sub-category breakdown.</p>
 
       <div className="cat-cards">
-        {BUDGET_STRUCTURE.map(cat => {
-          const catBudget = cat.subs.reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
+        {visibleCats(activeGroup.type).map(cat => {
+          const catBudget = visibleSubs(activeGroup.type, cat).reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
           const catSpent  = getCatActualMonth(cat.key, monthIdx);
           const ratio = catBudget > 0 ? catSpent / catBudget : 0;
           const pct = Math.min(ratio * 100, 100);
@@ -119,7 +119,7 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
               </div>
               {isOpen && (
                 <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                  {cat.subs.map(sub => {
+                  {visibleSubs(activeGroup?.type, cat).map(sub => {
                     const subSpent = getSubActualMonth(sub.key, monthIdx);
                     return (
                       <div
@@ -127,7 +127,7 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
                         onClick={() => onNavigateToRow && onNavigateToRow(sub.key, monthIdx)}
                         style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 2px', fontSize: '0.8rem', cursor: 'pointer' }}
                       >
-                        <span style={{ color: 'var(--muted)' }}>{sub.label}</span>
+                        <span style={{ color: 'var(--muted)' }}>{getSubLabel(activeGroup?.type, sub.key, sub.label)}</span>
                         <span>{subSpent > 0 ? fmt(subSpent) : '—'}</span>
                       </div>
                     );
