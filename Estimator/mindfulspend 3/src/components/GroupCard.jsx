@@ -1,9 +1,10 @@
 import '../styles/GroupCard.css';
-import { GROUP_TYPES } from '../context/AppContext';
+import { GROUP_TYPES, getStatusInfo, formatAmount } from '../context/AppContext';
 
 export default function GroupCard({ group, onOpen, onEdit, onDelete }) {
   const memberCount = group.members?.length ?? 0;
   const groupType = GROUP_TYPES.find(gt => gt.key === (group.type ?? 'household')) ?? GROUP_TYPES[0];
+  const statusInfo = getStatusInfo(group.status);
 
   const netTotal = (group.members ?? []).reduce((s, m) => {
     const gross = parseFloat(m.salary) || 0;
@@ -12,11 +13,12 @@ export default function GroupCard({ group, onOpen, onEdit, onDelete }) {
   }, 0);
 
   return (
-    <div className="gc-card">
-      {/* Top: icon + active badge */}
+    <div className={`gc-card${group.status === 'archived' ? ' gc-archived' : ''}`}
+      style={group.status === 'archived' ? { opacity: 0.6 } : undefined}>
+      {/* Top: icon + status badge */}
       <div className="gc-top">
         <div className="gc-icon">{groupType.icon}</div>
-        <span className="gc-badge">ACTIVE</span>
+        <span className="gc-badge" style={{ background: statusInfo.color }}>{statusInfo.label.toUpperCase()}</span>
       </div>
 
       {/* Name + type + member count */}
@@ -34,7 +36,7 @@ export default function GroupCard({ group, onOpen, onEdit, onDelete }) {
         <div>
           <div className="gc-savings-label">TOTAL SAVINGS</div>
           <div className="gc-savings-val">
-            ₹{netTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            {formatAmount(netTotal, group.currency)}
           </div>
         </div>
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, MEMBER_COLORS, GROUP_TYPES, getSubLabel, visibleCats, visibleSubs, buildDefaultBudgetPcts, buildDefaultSplits } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MEMBER_COLORS, GROUP_TYPES, getSubLabel, visibleCats, visibleSubs, buildDefaultBudgetPcts, buildDefaultSplits, CURRENCIES, DEFAULT_CURRENCY, getCurrencySymbol, formatAmount, GROUP_STATUSES, DEFAULT_STATUS } from '../context/AppContext';
 
 function toNum(v) {
   const n = parseFloat(v);
@@ -56,6 +56,8 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
 
   const [name, setName]             = useState('');
   const [type, setType]             = useState('household');
+  const [currency, setCurrency]     = useState(DEFAULT_CURRENCY);
+  const [status, setStatus]         = useState(DEFAULT_STATUS);
   const [tripEndDate, setTripEndDate] = useState('');
   const [members, setMembers]       = useState([{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: null , familyDeduction: null }]);
   // budgetPcts / splits are kept as plain strings while editing (simple text inputs)
@@ -68,6 +70,8 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
       const mem = editGroup.members.map(m => ({ ...m }));
       setName(editGroup.name);
       setType(editGroup.type ?? 'household');
+      setCurrency(editGroup.currency ?? DEFAULT_CURRENCY);
+      setStatus(editGroup.status ?? DEFAULT_STATUS);
       setTripEndDate(editGroup.tripEndDate ?? '');
       setMembers(mem);
       setBudgetPctStrs(pctsToStrings(editGroup.budgetPcts));
@@ -76,6 +80,8 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
       const initMembers = [{ id: 'p' + Date.now(), name: '', color: MEMBER_COLORS[0], salary: null , familyDeduction: null }];
       setName('');
       setType('household');
+      setCurrency(DEFAULT_CURRENCY);
+      setStatus(DEFAULT_STATUS);
       setTripEndDate('');
       setMembers(initMembers);
       setBudgetPctStrs(pctsToStrings(buildDefaultBudgetPcts('household')));
@@ -175,7 +181,7 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
       members.forEach(m => { splits[sub.key][m.id] = toNum(splitStrs[sub.key]?.[m.id]); });
     }));
 
-    const payload = { name: name.trim(), type, tripEndDate: type === 'travel' ? tripEndDate : null, members: members.map(m => ({
+    const payload = { name: name.trim(), type, currency, status, tripEndDate: type === 'travel' ? tripEndDate : null, members: members.map(m => ({
       ...m,
       salary:           parseFloat(m.salary)           || 0,
       familyDeduction:  parseFloat(m.familyDeduction)  || 0,
@@ -209,6 +215,49 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
         <input disabled={isEdit} className="modal-inp" style={{ maxWidth: 340 }} placeholder="e.g. Mumbai Flat 2026"
           value={name} onChange={e => setName(e.target.value)} />
       </div>
+
+      {/* Currency */}
+      <div className="editor-section">
+        <div className="editor-section-title">Currency</div>
+        <select className="modal-inp" style={{ maxWidth: 220 }}
+          value={currency} onChange={e => setCurrency(e.target.value)}>
+          {CURRENCIES.map(c => (
+            <option key={c.code} value={c.code}>{c.symbol} — {c.label} ({c.code})</option>
+          ))}
+        </select>
+        <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 6 }}>
+          All amounts for this group — budget, splits, bills — will be shown in this currency.
+        </p>
+      </div>
+
+      {/* Status — only relevant once a group exists */}
+      {isEdit && (
+        <div className="editor-section">
+          <div className="editor-section-title">Status</div>
+          <div className="group-type-grid">
+            {GROUP_STATUSES.map(s => (
+              <button
+                key={s.key}
+                type="button"
+                className={`group-type-btn${status === s.key ? ' selected' : ''}`}
+                style={status === s.key ? { borderColor: s.color } : undefined}
+                onClick={() => {
+                  if (s.key === 'archived' && status !== 'archived' && !window.confirm(`Archive "${name}"? It will be hidden from the main group list until unarchived.`)) return;
+                  setStatus(s.key);
+                }}
+              >
+                <span className="gt-icon" style={{ color: s.color }}>●</span>
+                <span className="gt-label">{s.label}</span>
+              </button>
+            ))}
+          </div>
+          {status === 'completed' && ['travel', 'roommates'].includes(type) && (
+            <p style={{ marginTop: 10, fontSize: '0.75rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+              💡 Marking a {type === 'travel' ? 'trip' : 'roommate group'} as completed keeps all its data intact — you can still open it to review the final numbers.
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Type */}
       <div className="editor-section">
@@ -253,7 +302,7 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
           </div>
         ) : ['travel', 'occasion'].includes(type) ? (
           <div className="member-row-header member-row-contribution">
-            <span>Name</span><span>Contribution (₹)</span><span />
+            <span>Name</span><span>Contribution ({getCurrencySymbol(currency)})</span><span />
           </div>
         ) : (
           <div className="member-row-header">
@@ -266,15 +315,15 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
             <input className="modal-inp" placeholder="Name" value={m.name}
               onChange={e => updateMember(m.id, 'name', e.target.value)} />
             {type === 'roommates' ? null : ['travel', 'occasion'].includes(type) ? (
-              <input className="modal-inp" placeholder="₹ Amount" value={m.salary}
+              <input className="modal-inp" placeholder={`${getCurrencySymbol(currency)} Amount`} value={m.salary}
                 onChange={e => updateMember(m.id, 'salary', e.target.value)} />
             ) : (
               <>
-                <input className="modal-inp" placeholder="₹ Gross" value={m.salary}
+                <input className="modal-inp" placeholder={`${getCurrencySymbol(currency)} Gross`} value={m.salary}
                   onChange={e => updateMember(m.id, 'salary', e.target.value)} />
-                <input className="modal-inp" placeholder="₹ Deduction" value={m.familyDeduction}
+                <input className="modal-inp" placeholder={`${getCurrencySymbol(currency)} Deduction`} value={m.familyDeduction}
                   onChange={e => updateMember(m.id, 'familyDeduction', e.target.value)} />
-                <div className="member-net">₹{calcNet(m.salary, m.familyDeduction).toLocaleString('en-IN')}</div>
+                <div className="member-net">{formatAmount(calcNet(m.salary, m.familyDeduction), currency)}</div>
               </>
             )}
             <button className="btn-remove" onClick={() => removeMember(m.id)}>✕</button>
@@ -284,10 +333,10 @@ export default function GroupEditor({ editGroup, onDone, onCancel }) {
         {validMembers.length > 0 && (
           <div style={{ marginTop: 8, fontSize: '0.8rem', color: 'var(--green)' }}>
             {type === 'travel' || type === 'occasion'
-              ? `Total pool: ₹${validMembers.reduce((s, m) => s + (parseFloat(m.salary) || 0), 0).toLocaleString('en-IN')}`
+              ? `Total pool: ${formatAmount(validMembers.reduce((s, m) => s + (parseFloat(m.salary) || 0), 0), currency)}`
               : type === 'roommates'
               ? `${validMembers.length} member${validMembers.length !== 1 ? 's' : ''}`
-              : `Combined net: ₹${validMembers.reduce((s, m) => s + calcNet(m.salary, m.familyDeduction), 0).toLocaleString('en-IN')}/month`
+              : `Combined net: ${formatAmount(validMembers.reduce((s, m) => s + calcNet(m.salary, m.familyDeduction), 0), currency)}/month`
             }
           </div>
         )}

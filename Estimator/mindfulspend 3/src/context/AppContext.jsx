@@ -39,6 +39,48 @@ export const MEMBER_COLORS = ['#818cf8','#34d399','#fb923c','#f472b6','#60a5fa',
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const ACTIVE_YEAR = 2026;
 
+// ── Currency support ─────────────────────────────────────────
+// group.currency stores one of these `code` values. Falls back to DEFAULT_CURRENCY
+// for groups created before this field existed.
+export const CURRENCIES = [
+  { code: 'INR', symbol: '₹',    label: 'Indian Rupee',   locale: 'en-IN' },
+  { code: 'USD', symbol: '$',    label: 'US Dollar',      locale: 'en-US' },
+  { code: 'EUR', symbol: '€',    label: 'Euro',           locale: 'de-DE' },
+  { code: 'GBP', symbol: '£',    label: 'British Pound',  locale: 'en-GB' },
+  { code: 'AED', symbol: 'د.إ',  label: 'UAE Dirham',     locale: 'ar-AE' },
+  { code: 'SGD', symbol: 'S$',   label: 'Singapore Dollar', locale: 'en-SG' },
+];
+export const DEFAULT_CURRENCY = 'INR';
+
+export function getCurrencyInfo(code) {
+  return CURRENCIES.find(c => c.code === code) ?? CURRENCIES.find(c => c.code === DEFAULT_CURRENCY);
+}
+
+export function getCurrencySymbol(code) {
+  return getCurrencyInfo(code).symbol;
+}
+
+// Formats a number with the right symbol + locale grouping, e.g. "₹1,20,000" or "$120,000".
+export function formatAmount(amount, code = DEFAULT_CURRENCY) {
+  const { symbol, locale } = getCurrencyInfo(code);
+  const n = Number.isFinite(amount) ? amount : (parseFloat(amount) || 0);
+  return `${symbol}${n.toLocaleString(locale)}`;
+}
+
+// ── Group status ──────────────────────────────────────────────
+// group.status stores one of these `key` values. Falls back to DEFAULT_STATUS
+// for groups created before this field existed.
+export const GROUP_STATUSES = [
+  { key: 'active',    label: 'Active',    color: '#34d399' },
+  { key: 'completed', label: 'Completed', color: '#60a5fa' },
+  { key: 'archived',  label: 'Archived',  color: '#9ca3af' },
+];
+export const DEFAULT_STATUS = 'active';
+
+export function getStatusInfo(status) {
+  return GROUP_STATUSES.find(s => s.key === status) ?? GROUP_STATUSES.find(s => s.key === DEFAULT_STATUS);
+}
+
 export const GROUP_TYPES = [
   { key: 'household',  label: 'Household',  icon: '🏠', desc: 'Shared household bills & budget' },
   { key: 'roommates',  label: 'Roommates',  icon: '🛋️', desc: 'Flatmates splitting rent & expenses' },
@@ -302,6 +344,14 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  const updateGroupStatus = useCallback((id, status) => {
+    setGroups(prev => {
+      const next = prev.map(g => g.id === id ? { ...g, status } : g);
+      saveLocalGroups(next);
+      return next;
+    });
+  }, []);
+
   const deleteGroup = useCallback((id) => {
     setGroups(prev => {
       const next = prev.filter(g => g.id !== id);
@@ -415,7 +465,7 @@ export function AppProvider({ children }) {
       groups, activeGroup, activeGroupId, setActiveGroupId,
       loading,
       loadGroups, loadGroupData,
-      createGroup, updateGroupLocal, deleteGroup,
+      createGroup, updateGroupLocal, updateGroupStatus, deleteGroup,
       actuals, getActual, getSubActualMonth, getCatActualMonth, setActualValue,
       billLog, changeLog, submitBill, clearLog,
       getTotalNet, getSubBudget,

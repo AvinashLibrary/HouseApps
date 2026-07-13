@@ -9,6 +9,10 @@ export default function HubView({ onOpenGroup }) {
   const { groups, deleteGroup, showToast } = useApp();
   const [showEditor, setShowEditor] = useState(false);
   const [editGroup, setEditGroup] = useState(null);
+  const [showArchived, setShowArchived] = useState(false);
+
+  const archivedCount = groups.filter(g => g.status === 'archived').length;
+  const visibleGroups = showArchived ? groups : groups.filter(g => g.status !== 'archived');
 
   const handleNew = () => { setEditGroup(null); setShowEditor(true); };
   const handleEdit = (g) => { setEditGroup(g); setShowEditor(true); };
@@ -23,6 +27,7 @@ export default function HubView({ onOpenGroup }) {
   };
 
   const isEmpty = groups.length === 0 && !showEditor;
+  const allHiddenByFilter = !isEmpty && visibleGroups.length === 0 && !showEditor;
 
   return (
     <>
@@ -34,6 +39,11 @@ export default function HubView({ onOpenGroup }) {
             <h2>Household Groups</h2>
             <p>Select a group to open the calculator, or create a new one.</p>
           </div>
+          {archivedCount > 0 && (
+            <button className="btn-auto-all" onClick={() => setShowArchived(v => !v)}>
+              {showArchived ? 'Hide archived' : `Show archived (${archivedCount})`}
+            </button>
+          )}
         </div>
       )}
 
@@ -45,9 +55,15 @@ export default function HubView({ onOpenGroup }) {
         <EmptyHubState onCreateGroup={handleNew} />
       )}
 
-{!showEditor && (
+      {allHiddenByFilter && (
+        <p style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>
+          All your groups are archived. <button className="btn-auto-all" onClick={() => setShowArchived(true)}>Show archived</button> to view them.
+        </p>
+      )}
+
+{!showEditor && visibleGroups.length > 0 && (
       <div  className="group-grid">
-        {groups.map(g => (
+        {visibleGroups.map(g => (
           <GroupCard
             key={g.id}
             group={g}
