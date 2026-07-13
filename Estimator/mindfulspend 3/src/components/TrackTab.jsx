@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, DETAIL_ITEMS, MONTHS, getSubLabel, getDetailItems, visibleSubs, visibleCats } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, getDetailItems, visibleSubs, visibleCats } from '../context/AppContext';
 
 const CAT_ICONS   = { needs: '🏠', wants: '🛍', savings: '💰' };
 const CAT_ICON_BG = { needs: '#dbeafe', wants: '#fef9c3', savings: '#e0e7ff' };
@@ -8,7 +8,7 @@ function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 function fmtDiffAbs(n) { return fmt(Math.abs(n)); }
 
 export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onFocusHandled }) {
-  const { activeGroup, getTotalNet, getSubBudget, getSubActualMonth, getActual, setActualValue } = useApp();
+  const { activeGroup, getSubBudget, getSubActualMonth, getActual, setActualValue } = useApp();
   const [monthIdx, setMonthIdx] = useState(11);
   const [collapsed, setCollapsed] = useState({});
   const [catOrder, setCatOrder] = useState(BUDGET_STRUCTURE.map(c => c.key));
@@ -19,7 +19,8 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
   // Respond to navigation requests from Dashboard/Receipts ("View in Expenses")
   useEffect(() => {
     if (focusSubKey === undefined || focusSubKey === null) return;
-    if (focusMonthIdx !== undefined) setMonthIdx(focusMonthIdx);
+    const poolType = activeGroup && ['travel', 'occasion'].includes(activeGroup.type);
+    if (focusMonthIdx !== undefined && !poolType) setMonthIdx(focusMonthIdx);
     const cat = BUDGET_STRUCTURE.find(c => c.subs.some(s => s.key === focusSubKey));
     if (cat) {
       setCollapsed(prev => ({ ...prev, [cat.key]: false }));
@@ -32,6 +33,9 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
 
   if (!activeGroup) return null;
 
+  const isPool = ['travel', 'occasion'].includes(activeGroup.type);
+  const mi = isPool ? 0 : monthIdx;
+
   const cats = catOrder
     .map(k => BUDGET_STRUCTURE.find(c => c.key === k))
     .filter(c => c && visibleCats(activeGroup.type).some(vc => vc.key === c.key));
@@ -40,7 +44,7 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
   visibleCats(activeGroup.type).forEach(cat => {
     visibleSubs(activeGroup.type, cat).forEach(sub => {
       monthBudget += getSubBudget(activeGroup, cat, sub);
-      monthActual += getSubActualMonth(sub.key, monthIdx);
+      monthActual += getSubActualMonth(sub.key, mi);
     });
   });
   const net = monthBudget - monthActual;
@@ -70,25 +74,29 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
   };
 
   const handleItemChange = (item, sub, val) => {
-    setActualValue(item.key, monthIdx, val, `${getSubLabel(activeGroup?.type, sub.key, sub.label)} › ${item.label}`);
+    setActualValue(item.key, mi, val, `${getSubLabel(activeGroup?.type, sub.key, sub.label)} › ${item.label}`);
   };
 
   return (
     <section className="tab-panel active">
       <div className="tab-toolbar">
-        <div className="month-picker" style={{ margin: 0 }}>
-          <button className="month-arrow" onClick={() => setMonthIdx(i => (i - 1 + 12) % 12)}>‹</button>
-          <span style={{ fontWeight: 600 }}>{MONTHS[monthIdx]} 2026</span>
-          <button className="month-arrow" onClick={() => setMonthIdx(i => (i + 1) % 12)}>›</button>
-        </div>
+        {isPool ? (
+          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>Total Pool Expenses</span>
+        ) : (
+          <div className="month-picker" style={{ margin: 0 }}>
+            <button className="month-arrow" onClick={() => setMonthIdx(i => (i - 1 + 12) % 12)}>‹</button>
+            <span style={{ fontWeight: 600 }}>{MONTHS[monthIdx]} 2026</span>
+            <button className="month-arrow" onClick={() => setMonthIdx(i => (i + 1) % 12)}>›</button>
+          </div>
+        )}
         <button className="btn-upload-header" onClick={onAddExpense}>📎 Upload Bill</button>
       </div>
 
       <div className="summary-row">
-        <div className="summary-chip"><span>{MONTHS[monthIdx]} Budget:</span><strong>{fmt(monthBudget)}</strong></div>
-        <div className="summary-chip"><span>{MONTHS[monthIdx]} Spent:</span><strong>{fmt(monthActual)}</strong></div>
+        <div className="summary-chip"><span>{isPool ? 'Total' : MONTHS[monthIdx]} Budget:</span><strong>{fmt(monthBudget)}</strong></div>
+        <div className="summary-chip"><span>{isPool ? 'Total' : MONTHS[monthIdx]} Spent:</span><strong>{fmt(monthActual)}</strong></div>
         <div className="summary-chip">
-          <span>{MONTHS[monthIdx]} Remaining:</span>
+          <span>{isPool ? 'Total' : MONTHS[monthIdx]} Remaining:</span>
           <strong style={{ color: net >= 0 ? 'var(--green)' : 'var(--red)' }}>{fmtDiffAbs(net)}</strong>
         </div>
       </div>
@@ -97,7 +105,7 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
         {cats.map(cat => {
           const icon = CAT_ICONS[cat.key] || '📂';
           const iconBg = CAT_ICON_BG[cat.key] || '#f3f4f6';
-          const catSpent  = visibleSubs(activeGroup.type, cat).reduce((s, sub) => s + getSubActualMonth(sub.key, monthIdx), 0);
+          const catSpent  = visibleSubs(activeGroup.type, cat).reduce((s, sub) => s + getSubActualMonth(sub.key, mi), 0);
           const catBudget = visibleSubs(activeGroup.type, cat).reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
           const isOpen = !collapsed[cat.key];
           const isDragOver = dragOverKey === cat.key;
@@ -133,7 +141,7 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
                 <div style={{ padding: '4px 20px 16px' }}>
                   {visibleSubs(activeGroup?.type, cat).map(sub => {
                     const subBud   = getSubBudget(activeGroup, cat, sub);
-                    const subSpent = getSubActualMonth(sub.key, monthIdx);
+                    const subSpent = getSubActualMonth(sub.key, mi);
                     const varClass = subSpent === 0 ? '' : variance >= 0 ? 'var(--green)' : 'var(--red)';
                     const varText = subSpent === 0 ? '' : (variance >= 0 ? '−' : '+') + fmtDiffAbs(variance).slice(1) + (variance >= 0 ? ' left' : ' over');
 
@@ -149,7 +157,7 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                           {getDetailItems(activeGroup?.type, sub.key).map(item => {
-                            const v = getActual(item.key, monthIdx);
+                            const v = getActual(item.key, mi);
                             return (
                               <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                                 <div style={{ flex: 1, fontSize: '0.8rem', color: 'var(--muted)' }}>{item.label}</div>

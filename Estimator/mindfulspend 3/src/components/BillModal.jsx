@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs, visibleCats } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs } from '../context/AppContext';
 
 export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const { activeGroup, submitBill, showToast } = useApp();
@@ -20,6 +20,8 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
 
   if (!open || !activeGroup) return null;
 
+  const isPool = ['travel', 'occasion'].includes(activeGroup.type);
+
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (f) setFileName(f.name);
@@ -35,16 +37,18 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       for (const sub of cat.subs)
         if (sub.key === subCatKey) subCatLabel = getSubLabel(activeGroup?.type, sub.key, sub.label);
 
+    const effectiveMonthIdx = isPool ? 0 : monthIdx;
+
     await submitBill(activeGroup.id, {
       fileName: fileName || 'No file selected',
       amount: amt,
       subCatKey,
       subCatLabel,
-      monthIdx,
+      monthIdx: effectiveMonthIdx,
       note: note.trim(),
     });
 
-    showToast(`✓ ₹${amt.toLocaleString('en-IN')} added to ${subCatLabel} · ${MONTHS[monthIdx]}`);
+    showToast(`✓ ₹${amt.toLocaleString('en-IN')} added to ${subCatLabel}${isPool ? '' : ` · ${MONTHS[monthIdx]}`}`);
     onClose();
   };
 
@@ -80,12 +84,14 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
               ))}
             </select>
           </div>
+          {!isPool && (
           <div className="form-group">
             <label className="form-label">Month</label>
             <select value={monthIdx} onChange={e => setMonthIdx(parseInt(e.target.value))}>
               {MONTHS.map((m, i) => <option key={m} value={i}>{m} 2026</option>)}
             </select>
           </div>
+          )}
           <div className="form-group">
             <label className="form-label">Note <span>(optional)</span></label>
             <input className="modal-inp" type="text" placeholder="e.g. Big Bazaar weekly shop"

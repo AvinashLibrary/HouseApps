@@ -3,10 +3,74 @@ import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats } from '../contex
 function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
 function fmtDiff(n) { return (n >= 0 ? '+' : '-') + fmt(Math.abs(n)).slice(1); }
 
+function PoolAnalysis({ activeGroup, getSubBudget, getSubActualMonth, onNavigateToRow }) {
+  let totalSaved = 0, totalOver = 0;
+
+  return (
+    <section className="tab-panel active">
+      <div className="card">
+        <div className="card-title">Budget vs. Actual — Pool Summary</div>
+        <div className="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Budget</th>
+                <th>Spent</th>
+                <th>Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visibleCats(activeGroup.type).map(cat => (
+                <>
+                  <tr key={cat.key} style={{ background: 'rgba(255,255,255,0.03)' }}>
+                    <td colSpan={4}><strong>{cat.label}</strong></td>
+                  </tr>
+                  {visibleSubs(activeGroup.type, cat).map(sub => {
+                    const budget = getSubBudget(activeGroup, cat, sub);
+                    const spent = getSubActualMonth(sub.key, 0);
+                    const balance = budget - spent;
+                    if (balance >= 0) totalSaved += balance; else totalOver += Math.abs(balance);
+                    return (
+                      <tr key={sub.key} style={{ cursor: 'pointer' }} onClick={() => onNavigateToRow && onNavigateToRow(sub.key, 0)}>
+                        <td>{getSubLabel(activeGroup.type, sub.key, sub.label)}</td>
+                        <td style={{ color: 'var(--muted)' }}>{fmt(budget)}</td>
+                        <td>{spent === 0 ? '—' : fmt(spent)}</td>
+                        <td className={spent === 0 ? '' : balance >= 0 ? 'under-budget' : 'over-budget'}>
+                          {spent === 0 ? '—' : fmtDiff(balance)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="summary-row" style={{ marginTop: 16 }}>
+        <div className="summary-chip"><span>Total Saved:</span><strong style={{ color: 'var(--green)' }}>{fmt(totalSaved)}</strong></div>
+        <div className="summary-chip"><span>Total Overspent:</span><strong style={{ color: 'var(--red)' }}>{fmt(totalOver)}</strong></div>
+        <div className="summary-chip">
+          <span>Net Position:</span>
+          <strong style={{ color: totalSaved - totalOver >= 0 ? 'var(--green)' : 'var(--red)' }}>
+            {fmt(Math.abs(totalSaved - totalOver))} {totalSaved - totalOver >= 0 ? 'ahead' : 'behind'}
+          </strong>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AnalysisTab({ onNavigateToRow }) {
-  const { activeGroup, getSubBudget, getSubActualMonth, getCatActualMonth } = useApp();
+  const { activeGroup, getSubBudget, getSubActualMonth } = useApp();
 
   if (!activeGroup) return null;
+
+  if (['travel', 'occasion'].includes(activeGroup.type)) {
+    return <PoolAnalysis activeGroup={activeGroup} getSubBudget={getSubBudget} getSubActualMonth={getSubActualMonth} onNavigateToRow={onNavigateToRow} />;
+  }
 
   const monthHasData = (mi) => {
     return visibleCats(activeGroup.type).some(cat =>

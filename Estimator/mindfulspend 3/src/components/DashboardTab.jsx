@@ -26,13 +26,16 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
 
   if (!activeGroup) return null;
 
+  const isPool = ['travel', 'occasion'].includes(activeGroup.type);
+  const mi = isPool ? 0 : monthIdx;
+
   const totalNet = getTotalNet(activeGroup);
 
   let totalSpent = 0, totalBudget = 0;
   visibleCats(activeGroup.type).forEach(cat => {
     visibleSubs(activeGroup.type, cat).forEach(sub => {
       totalBudget += getSubBudget(activeGroup, cat, sub);
-      totalSpent  += getSubActualMonth(sub.key, monthIdx);
+      totalSpent  += getSubActualMonth(sub.key, mi);
     });
   });
 
@@ -40,7 +43,7 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
   const spentRatio = totalBudget > 0 ? Math.min(totalSpent / totalBudget, 1) : 0;
   const donutCirc = 87.96;
   const donutFill = spentRatio * donutCirc;
-  const mot = MOTIVATIONS[monthIdx % MOTIVATIONS.length];
+  const mot = MOTIVATIONS[mi % MOTIVATIONS.length];
 
   const toggleCard = (catKey) => setOpenCats(prev => ({ ...prev, [catKey]: !prev[catKey] }));
 
@@ -48,7 +51,7 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
     <section className="tab-panel active">
       <div className="dash-header">
         <div>
-          <h1 className="dash-title">{MONTHS[monthIdx]} Overview</h1>
+          <h1 className="dash-title">{isPool ? 'Pool Overview' : `${MONTHS[monthIdx]} Overview`}</h1>
         </div>
         <div className="dash-header-right">
           <button className="btn-add-expense" onClick={onAddExpense}>
@@ -57,11 +60,13 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
         </div>
       </div>
 
-      <div className="month-picker">
-        <button className="month-arrow" onClick={() => setMonthIdx(i => (i - 1 + 12) % 12)}>‹</button>
-        <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{MONTHS[monthIdx]} 2026</span>
-        <button className="month-arrow" onClick={() => setMonthIdx(i => (i + 1) % 12)}>›</button>
-      </div>
+      {!isPool && (
+        <div className="month-picker">
+          <button className="month-arrow" onClick={() => setMonthIdx(i => (i - 1 + 12) % 12)}>‹</button>
+          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{MONTHS[monthIdx]} 2026</span>
+          <button className="month-arrow" onClick={() => setMonthIdx(i => (i + 1) % 12)}>›</button>
+        </div>
+      )}
 
       <div className="stat-cards">
         <div className="stat-card">
@@ -96,7 +101,7 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
       <div className="cat-cards">
         {visibleCats(activeGroup.type).map(cat => {
           const catBudget = visibleSubs(activeGroup.type, cat).reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
-          const catSpent  = getCatActualMonth(cat.key, monthIdx);
+          const catSpent  = getCatActualMonth(cat.key, mi);
           const ratio = catBudget > 0 ? catSpent / catBudget : 0;
           const pct = Math.min(ratio * 100, 100);
           const icon = CAT_ICONS[cat.key] || '📂';
@@ -120,11 +125,11 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
               {isOpen && (
                 <div style={{ marginTop: 12, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
                   {visibleSubs(activeGroup?.type, cat).map(sub => {
-                    const subSpent = getSubActualMonth(sub.key, monthIdx);
+                    const subSpent = getSubActualMonth(sub.key, mi);
                     return (
                       <div
                         key={sub.key}
-                        onClick={() => onNavigateToRow && onNavigateToRow(sub.key, monthIdx)}
+                        onClick={() => onNavigateToRow && onNavigateToRow(sub.key, mi)}
                         style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 2px', fontSize: '0.8rem', cursor: 'pointer' }}
                       >
                         <span style={{ color: 'var(--muted)' }}>{getSubLabel(activeGroup?.type, sub.key, sub.label)}</span>
