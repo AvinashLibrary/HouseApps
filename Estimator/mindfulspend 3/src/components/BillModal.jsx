@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs, getCurrencySymbol, formatAmount, PAYMENT_MODES, DEFAULT_PAYMENT_MODE } from '../context/AppContext';
 
 export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const { activeGroup, submitBill, showToast } = useApp();
@@ -8,6 +8,9 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const [monthIdx, setMonthIdx] = useState(defaultMonthIdx);
   const [note, setNote]         = useState('');
   const [fileName, setFileName] = useState('');
+  const [isRecurring, setIsRecurring] = useState(false);
+  const [recurMonths, setRecurMonths] = useState(3);
+  const [paymentMode, setPaymentMode] = useState(DEFAULT_PAYMENT_MODE);
   const fileRef = useRef();
 
   useEffect(() => {
@@ -15,12 +18,17 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       setAmount(''); setNote(''); setFileName('');
       setMonthIdx(defaultMonthIdx);
       setSubCatKey('');
+      setIsRecurring(false);
+      setRecurMonths(3);
+      setPaymentMode(DEFAULT_PAYMENT_MODE);
     }
   }, [open, defaultMonthIdx]);
 
   if (!open || !activeGroup) return null;
 
   const isPool = ['travel', 'occasion'].includes(activeGroup.type);
+  const currencySymbol = getCurrencySymbol(activeGroup.currency);
+  const maxSpan = 12 - monthIdx;
 
   const handleFile = (e) => {
     const f = e.target.files[0];
@@ -38,6 +46,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
         if (sub.key === subCatKey) subCatLabel = getSubLabel(activeGroup?.type, sub.key, sub.label);
 
     const effectiveMonthIdx = isPool ? 0 : monthIdx;
+    const recurring = (!isPool && isRecurring && recurMonths > 1) ? { months: Math.min(recurMonths, 12 - effectiveMonthIdx) } : null;
 
     await submitBill(activeGroup.id, {
       fileName: fileName || 'No file selected',
@@ -46,9 +55,12 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       subCatLabel,
       monthIdx: effectiveMonthIdx,
       note: note.trim(),
+      recurring,
+      paymentMode,
     });
 
-    showToast(`✓ ₹${amt.toLocaleString('en-IN')} added to ${subCatLabel}${isPool ? '' : ` · ${MONTHS[monthIdx]}`}`);
+    const recurNote = recurring ? ` for ${recurring.months} months` : '';
+    showToast(`✓ ${formatAmount(amt, activeGroup.currency)} added to ${subCatLabel}${isPool ? '' : ` · ${MONTHS[monthIdx]}`}${recurNote}`);
     onClose();
   };
 
@@ -69,7 +81,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
             </div>
           </div>
           <div className="form-group">
-            <label className="form-label">Bill Total (₹) <span>— read from your bill</span></label>
+            <label className="form-label">Bill Total ({currencySymbol}) <span>— read from your bill</span></label>
             <input className="modal-inp" type="number" placeholder="e.g. 2500" min="0"
               value={amount} onChange={e => setAmount(e.target.value)} />
           </div>
@@ -84,12 +96,40 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
               ))}
             </select>
           </div>
+          <div className="form-group">
+            <label className="form-label">Payment Mode</label>
+            <select value={paymentMode} onChange={e => setPaymentMode(e.target.value)}>
+              {PAYMENT_MODES.map(p => <option key={p.key} value={p.key}>{p.icon} {p.label}</option>)}
+            </select>
+          </div>
           {!isPool && (
           <div className="form-group">
             <label className="form-label">Month</label>
             <select value={monthIdx} onChange={e => setMonthIdx(parseInt(e.target.value))}>
               {MONTHS.map((m, i) => <option key={m} value={i}>{m} 2026</option>)}
             </select>
+          </div>
+          )}
+          {!isPool && (
+          <div className="form-group">
+            <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input type="checkbox" checked={isRecurring} disabled={maxSpan <= 1}
+                onChange={e => setIsRecurring(e.target.checked)} />
+              Repeat this expense monthly
+            </label>
+            {isRecurring && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+                <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>For</span>
+                <input className="modal-inp" type="number" min="2" max={maxSpan} style={{ width: 70 }}
+                  value={recurMonths} onChange={e => setRecurMonths(Math.max(2, Math.min(maxSpan, parseInt(e.target.value) || 2)))} />
+                <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>months, starting {MONTHS[monthIdx]}</span>
+              </div>
+            )}
+            {maxSpan <= 1 && (
+              <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 4 }}>
+                Can't repeat past December — pick an earlier month to enable this.
+              </p>
+            )}
           </div>
           )}
           <div className="form-group">

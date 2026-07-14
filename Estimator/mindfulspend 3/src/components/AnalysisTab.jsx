@@ -1,10 +1,37 @@
-import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats } from '../context/AppContext';
+import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats, PAYMENT_MODES, formatAmount } from '../context/AppContext';
 
-function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
-function fmtDiff(n) { return (n >= 0 ? '+' : '-') + fmt(Math.abs(n)).slice(1); }
+function PaymentModeBreakdown({ bills, currency }) {
+  const totals = PAYMENT_MODES.map(p => ({
+    ...p,
+    total: bills.filter(b => (b.paymentMode || 'other') === p.key).reduce((s, b) => s + b.amount, 0),
+  })).filter(p => p.total > 0);
 
-function PoolAnalysis({ activeGroup, getSubBudget, getSubActualMonth, onNavigateToRow }) {
+  if (totals.length === 0) return null;
+  const grandTotal = totals.reduce((s, p) => s + p.total, 0);
+
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="card-title">Spend by Payment Mode</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+        {totals.map(p => (
+          <div key={p.key} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ width: 24 }}>{p.icon}</span>
+            <span style={{ flex: 1, fontSize: '0.85rem' }}>{p.label}</span>
+            <div style={{ flex: 2, background: 'var(--surface2)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+              <div style={{ width: `${(p.total / grandTotal) * 100}%`, height: '100%', background: 'var(--accent)' }} />
+            </div>
+            <strong style={{ fontSize: '0.85rem', minWidth: 90, textAlign: 'right' }}>{formatAmount(p.total, currency)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PoolAnalysis({ activeGroup, getSubBudget, getSubActualMonth, onNavigateToRow, billLog }) {
   let totalSaved = 0, totalOver = 0;
+  const fmt = (n) => formatAmount(Math.round(n), activeGroup.currency);
+  const fmtDiff = (n) => (n >= 0 ? '+' : '-') + fmt(Math.abs(n)).slice(1);
 
   return (
     <section className="tab-panel active">
@@ -59,18 +86,22 @@ function PoolAnalysis({ activeGroup, getSubBudget, getSubActualMonth, onNavigate
           </strong>
         </div>
       </div>
+      <PaymentModeBreakdown bills={billLog} currency={activeGroup.currency} />
     </section>
   );
 }
 
 export default function AnalysisTab({ onNavigateToRow }) {
-  const { activeGroup, getSubBudget, getSubActualMonth } = useApp();
+  const { activeGroup, getSubBudget, getSubActualMonth, billLog } = useApp();
 
   if (!activeGroup) return null;
 
   if (['travel', 'occasion'].includes(activeGroup.type)) {
-    return <PoolAnalysis activeGroup={activeGroup} getSubBudget={getSubBudget} getSubActualMonth={getSubActualMonth} onNavigateToRow={onNavigateToRow} />;
+    return <PoolAnalysis activeGroup={activeGroup} getSubBudget={getSubBudget} getSubActualMonth={getSubActualMonth} onNavigateToRow={onNavigateToRow} billLog={billLog} />;
   }
+
+  const fmt = (n) => formatAmount(Math.round(n), activeGroup.currency);
+  const fmtDiff = (n) => (n >= 0 ? '+' : '-') + fmt(Math.abs(n)).slice(1);
 
   const monthHasData = (mi) => {
     return visibleCats(activeGroup.type).some(cat =>
@@ -149,6 +180,7 @@ export default function AnalysisTab({ onNavigateToRow }) {
           </strong>
         </div>
       </div>
+      <PaymentModeBreakdown bills={billLog} currency={activeGroup.currency} />
     </section>
   );
 }

@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { useApp, BUDGET_STRUCTURE, MONTHS } from '../context/AppContext';
-
-function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+import { useApp, BUDGET_STRUCTURE, MONTHS, getPaymentModeInfo, PAYMENT_MODES, formatAmount } from '../context/AppContext';
 
 function formatTs(ts) {
   const d = ts instanceof Date ? ts : new Date(ts);
@@ -13,12 +11,16 @@ export default function ReceiptsTab({ onAddExpense, onNavigateToRow }) {
   const [view, setView] = useState('bills');
   const [monthFilter, setMonthFilter] = useState('all'); // 'all' or index
   const [catFilter, setCatFilter] = useState('');
+  const [modeFilter, setModeFilter] = useState('');
 
   if (!activeGroup) return null;
+
+  const fmt = (n) => formatAmount(n, activeGroup.currency);
 
   const bills = billLog.filter(b => {
     if (monthFilter !== 'all' && b.monthIdx !== monthFilter) return false;
     if (catFilter && b.subCatKey !== catFilter) return false;
+    if (modeFilter && (b.paymentMode || 'other') !== modeFilter) return false;
     return true;
   });
 
@@ -51,6 +53,10 @@ export default function ReceiptsTab({ onAddExpense, onNavigateToRow }) {
                 </optgroup>
               ))}
             </select>
+            <select style={{ width: 'auto', minWidth: 150 }} value={modeFilter} onChange={e => setModeFilter(e.target.value)}>
+              <option value="">All Payment Modes</option>
+              {PAYMENT_MODES.map(p => <option key={p.key} value={p.key}>{p.icon} {p.label}</option>)}
+            </select>
           </div>
 
           {bills.length === 0 ? (
@@ -68,9 +74,17 @@ export default function ReceiptsTab({ onAddExpense, onNavigateToRow }) {
                     <div style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>📎 {bill.fileName}</div>
                     <div className="bill-card-amt">{fmt(bill.amount)}</div>
                   </div>
-                  <div className="bill-badges" style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <div className="bill-badges" style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
                     <span className="badge badge-cat" style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)' }}>{bill.subCatLabel}</span>
                     <span className="badge badge-month" style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)' }}>{MONTHS[bill.monthIdx]}</span>
+                    <span className="badge badge-mode" style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)' }}>
+                      {getPaymentModeInfo(bill.paymentMode).icon} {getPaymentModeInfo(bill.paymentMode).label}
+                    </span>
+                    {bill.recurringId && (
+                      <span className="badge badge-recurring" style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)' }}>
+                        🔁 {bill.occurrence}/{bill.occurrenceCount}
+                      </span>
+                    )}
                   </div>
                   {bill.note && <div className="bill-card-note" style={{ marginTop: 6 }}>{bill.note}</div>}
                   <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: 8 }}>{formatTs(bill.ts)}</div>

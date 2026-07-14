@@ -81,6 +81,23 @@ export function getStatusInfo(status) {
   return GROUP_STATUSES.find(s => s.key === status) ?? GROUP_STATUSES.find(s => s.key === DEFAULT_STATUS);
 }
 
+// ── Payment modes ─────────────────────────────────────────────
+// bill.paymentMode stores one of these `key` values. Falls back to
+// DEFAULT_PAYMENT_MODE for bills logged before this field existed.
+export const PAYMENT_MODES = [
+  { key: 'cash',       label: 'Cash',        icon: '💵' },
+  { key: 'card',       label: 'Card',        icon: '💳' },
+  { key: 'upi',        label: 'UPI',         icon: '📱' },
+  { key: 'netbanking', label: 'Net Banking', icon: '🏦' },
+  { key: 'wallet',     label: 'Wallet',      icon: '👛' },
+  { key: 'other',      label: 'Other',       icon: '🧾' },
+];
+export const DEFAULT_PAYMENT_MODE = 'other';
+
+export function getPaymentModeInfo(key) {
+  return PAYMENT_MODES.find(p => p.key === key) ?? PAYMENT_MODES.find(p => p.key === DEFAULT_PAYMENT_MODE);
+}
+
 export const GROUP_TYPES = [
   { key: 'household',  label: 'Household',  icon: '🏠', desc: 'Shared household bills & budget' },
   { key: 'roommates',  label: 'Roommates',  icon: '🛋️', desc: 'Flatmates splitting rent & expenses' },
@@ -399,28 +416,59 @@ export function AppProvider({ children }) {
   }, [activeGroupId, showToast]);
 
   // ── Bills ──────────────────────────────────────────────────
+  // billPayload.recurring, if present, is { months: number } — the bill amount
+  // repeats unchanged for that many consecutive months starting at monthIdx
+  // (capped to the remaining months in the year). Each generated entry is
+  // tagged with a shared recurringId and an occurrence index so they can be
+  // identified together later (e.g. for a future "cancel remaining" action).
   const submitBill = useCallback(async (groupId, billPayload) => {
-    const { amount, subCatKey, subCatLabel, monthIdx, note, fileName } = billPayload;
+    const { amount, subCatKey, subCatLabel, monthIdx, note, fileName, recurring, paymentMode } = billPayload;
 
-    // Optimistically update actuals for first detail item in that sub
     const groupType = groups.find(g => g.id === groupId)?.type;
+    const mode = paymentMode || DEFAULT_PAYMENT_MODE;
+    const isRecurring = !!recurring?.months && recurring.months > 1;
+    const span = isRecurring ? Math.min(recurring.months, 12 - monthIdx) : 1;
+    const monthIdxs = Array.from({ length: span }, (_, i) => monthIdx + i);
+    const recurringId = isRecurring ? `rec_${Date.now()}` : null;
+
+    // Optimistically update actuals for the first detail item in that sub, for every occurrence
     const firstItem = getDetailItems(groupType, subCatKey)[0];
     if (firstItem) {
-      const k = `${firstItem.key}-${monthIdx}`;
-      setActuals(prev => ({ ...prev, [k]: (prev[k] || 0) + amount }));
+      setActuals(prev => {
+        const next = { ...prev };
+        monthIdxs.forEach(mi => {
+          const k = `${firstItem.key}-${mi}`;
+          next[k] = (next[k] || 0) + amount;
+        });
+        return next;
+      });
     }
 
     const ts = new Date();
-    setBillLog(prev => [{ ts, fileName, amount, subCatKey, subCatLabel, monthIdx, note, id: Date.now() }, ...prev]);
-    setChangeLog(prev => [{ ts, source: 'bill', path: subCatLabel, month: MONTHS[monthIdx], monthIdx, subCatKey, newVal: amount, note: fileName + (note ? ` · ${note}` : ''), id: Date.now() }, ...prev]);
+    const billEntries = monthIdxs.map((mi, i) => ({
+      ts, fileName, amount, subCatKey, subCatLabel, monthIdx: mi, note, paymentMode: mode,
+      recurringId, occurrence: i + 1, occurrenceCount: span,
+      id: Date.now() + i,
+    }));
+    const changeEntries = monthIdxs.map((mi, i) => ({
+      ts, source: 'bill', path: subCatLabel, month: MONTHS[mi], monthIdx: mi, subCatKey,
+      newVal: amount,
+      note: fileName + (note ? ` · ${note}` : '') + (isRecurring ? ` · recurring ${i + 1}/${span}` : ''),
+      id: Date.now() + i + 1,
+    }));
 
-    // Fire-and-forget to server
-    try {
-      await api.submitBill(groupId, { ...billPayload, year: ACTIVE_YEAR });
-    } catch (e) {
-      console.warn('Server unavailable — bill kept locally only:', e.message);
+    setBillLog(prev => [...billEntries, ...prev]);
+    setChangeLog(prev => [...changeEntries, ...prev]);
+
+    // Fire-and-forget to server, one call per occurrence, independent of each other
+    for (const mi of monthIdxs) {
+      try {
+        await api.submitBill(groupId, { ...billPayload, monthIdx: mi, year: ACTIVE_YEAR });
+      } catch (e) {
+        console.warn('Server unavailable — bill kept locally only:', e.message);
+      }
     }
-  }, [showToast]);
+  }, [showToast, groups]);
 
   const clearLog = useCallback(() => {
     setChangeLog([]);

@@ -1,11 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, getDetailItems, visibleSubs, visibleCats } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, getDetailItems, visibleSubs, visibleCats, formatAmount } from '../context/AppContext';
 
 const CAT_ICONS   = { needs: '🏠', wants: '🛍', savings: '💰' };
 const CAT_ICON_BG = { needs: '#dbeafe', wants: '#fef9c3', savings: '#e0e7ff' };
-
-function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
-function fmtDiffAbs(n) { return fmt(Math.abs(n)); }
 
 export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onFocusHandled }) {
   const { activeGroup, getSubBudget, getSubActualMonth, getActual, setActualValue } = useApp();
@@ -32,6 +29,9 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
   }, [focusSubKey, focusMonthIdx]); // eslint-disable-line
 
   if (!activeGroup) return null;
+
+  const fmt = (n) => formatAmount(Math.round(n), activeGroup.currency);
+  const fmtDiffAbs = (n) => fmt(Math.abs(n));
 
   const isPool = ['travel', 'occasion'].includes(activeGroup.type);
   const mi = isPool ? 0 : monthIdx;
@@ -142,6 +142,7 @@ export default function TrackTab({ onAddExpense, focusSubKey, focusMonthIdx, onF
                   {visibleSubs(activeGroup?.type, cat).map(sub => {
                     const subBud   = getSubBudget(activeGroup, cat, sub);
                     const subSpent = getSubActualMonth(sub.key, mi);
+                    const variance = subBud - subSpent;
                     const varClass = subSpent === 0 ? '' : variance >= 0 ? 'var(--green)' : 'var(--red)';
                     const varText = subSpent === 0 ? '' : (variance >= 0 ? '−' : '+') + fmtDiffAbs(variance).slice(1) + (variance >= 0 ? ' left' : ' over');
 
