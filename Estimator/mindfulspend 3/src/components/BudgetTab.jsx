@@ -1,13 +1,23 @@
 import { useState } from 'react';
-import { useApp, DETAIL_ITEMS, MEMBER_COLORS, getSubLabel, getDetailItems, visibleSubs, visibleCats } from '../context/AppContext';
-
-function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
+import { useApp, DETAIL_ITEMS, MEMBER_COLORS, getSubLabel, getDetailItems, visibleSubs, visibleCats, formatAmount, getAlertThreshold, DEFAULT_ALERT_THRESHOLD } from '../context/AppContext';
 
 export default function BudgetTab() {
-  const { activeGroup, getTotalNet, getSubBudget } = useApp();
+  const { activeGroup, getTotalNet, getSubBudget, updateAlertThreshold, clearDismissedAlerts } = useApp();
   const [accordionOpen, setAccordionOpen] = useState(false);
 
   if (!activeGroup) return null;
+
+  const fmt = (n) => formatAmount(Math.round(n), activeGroup.currency);
+  const threshold = getAlertThreshold(activeGroup);
+  const thresholdPct = Math.round(threshold * 100);
+
+  const handleThresholdChange = (pct) => {
+    const clamped = Math.min(99, Math.max(50, pct));
+    updateAlertThreshold(activeGroup.id, clamped / 100);
+    // A changed threshold can un-flag or newly-flag categories, so previously
+    // dismissed alerts (tied to the old threshold) shouldn't silently persist.
+    clearDismissedAlerts(activeGroup.id);
+  };
 
   const type = activeGroup.type ?? 'household';
   const showSalary = !['travel', 'occasion', 'roommates'].includes(type);
@@ -48,6 +58,30 @@ export default function BudgetTab() {
       )}
 
       <div className="card">
+        <div className="card-title">Budget Alert Settings</div>
+        <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginTop: 4 }}>
+          Get flagged on the Dashboard when a category crosses this percentage of its budget.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
+          <input
+            type="range" min="50" max="99" step="1"
+            value={thresholdPct}
+            onChange={e => handleThresholdChange(parseInt(e.target.value))}
+            style={{ flex: 1, maxWidth: 260 }}
+          />
+          <strong style={{ minWidth: 48 }}>{thresholdPct}%</strong>
+          {thresholdPct !== Math.round(DEFAULT_ALERT_THRESHOLD * 100) && (
+            <button
+              onClick={() => handleThresholdChange(Math.round(DEFAULT_ALERT_THRESHOLD * 100))}
+              style={{ background: 'none', border: 'none', color: 'var(--accent2)', fontSize: '0.78rem', cursor: 'pointer' }}
+            >
+              Reset to default ({Math.round(DEFAULT_ALERT_THRESHOLD * 100)}%)
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 16 }}>
         <div className="card-title">Budget Allocation</div>
         <div className="tbl-wrap">
           <table>

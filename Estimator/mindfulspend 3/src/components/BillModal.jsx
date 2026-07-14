@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs, getCurrencySymbol, formatAmount, PAYMENT_MODES, DEFAULT_PAYMENT_MODE, normalizeTags } from '../context/AppContext';
+import { parseExpenseText } from '../services/expenseParser';
 
 export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const { activeGroup, submitBill, showToast, billLog } = useApp();
@@ -13,6 +14,8 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const [paymentMode, setPaymentMode] = useState(DEFAULT_PAYMENT_MODE);
   const [tagsInput, setTagsInput] = useState('');
   const [merchant, setMerchant] = useState('');
+  const [aiText, setAiText] = useState('');
+  const [showAi, setShowAi] = useState(false);
   const fileRef = useRef();
 
   // Recently used tags/merchants across this group's bills, for autocomplete
@@ -29,6 +32,8 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       setPaymentMode(DEFAULT_PAYMENT_MODE);
       setTagsInput('');
       setMerchant('');
+      setAiText('');
+      setShowAi(false);
     }
   }, [open, defaultMonthIdx]);
 
@@ -41,6 +46,30 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const handleFile = (e) => {
     const f = e.target.files[0];
     if (f) setFileName(f.name);
+  };
+
+  const handleAiParse = () => {
+    if (!aiText.trim()) return;
+    const parsed = parseExpenseText(aiText);
+
+    // Only accept a parsed category if it's actually a visible sub-category
+    // for this group's type — e.g. "investments" is hidden for travel groups.
+    const validSubKeys = BUDGET_STRUCTURE.flatMap(cat => visibleSubs(activeGroup?.type, cat).map(s => s.key));
+    const categoryFound = parsed.subCatKey && validSubKeys.includes(parsed.subCatKey);
+
+    if (parsed.amount) setAmount(String(parsed.amount));
+    if (parsed.merchant) setMerchant(parsed.merchant);
+    if (categoryFound) setSubCatKey(parsed.subCatKey);
+    if (parsed.paymentMode) setPaymentMode(parsed.paymentMode);
+    if (parsed.tags.length > 0) setTagsInput(parsed.tags.join(', '));
+    if (parsed.recurring && !isPool) setIsRecurring(true);
+
+    const missing = [];
+    if (!parsed.amount) missing.push('amount');
+    if (!categoryFound) missing.push('category');
+    showToast(missing.length > 0
+      ? `✨ Parsed what I could — please fill in ${missing.join(' and ')} below.`
+      : '✨ Parsed! Double-check the fields below before saving.');
   };
 
   const submit = async () => {
@@ -83,6 +112,34 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
+          <div className="form-group">
+            <button
+              type="button"
+              onClick={() => setShowAi(v => !v)}
+              style={{ background: 'none', border: '1px dashed var(--border)', borderRadius: 6, padding: '8px 12px', cursor: 'pointer', color: 'var(--accent2)', fontSize: '0.85rem', width: '100%', textAlign: 'left' }}
+            >
+              ✨ {showAi ? 'Hide' : 'Try'} AI Entry — describe the expense in your own words
+            </button>
+            {showAi && (
+              <div style={{ marginTop: 10 }}>
+                <textarea
+                  className="modal-inp"
+                  style={{ width: '100%', minHeight: 60, resize: 'vertical', fontFamily: 'inherit' }}
+                  placeholder="e.g. ₹450 at Big Bazaar for groceries, paid by UPI"
+                  value={aiText}
+                  onChange={e => setAiText(e.target.value)}
+                />
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 6 }}>
+                  <p style={{ fontSize: '0.72rem', color: 'var(--muted)', margin: 0 }}>
+                    This fills in fields below as a starting draft — always reviewed by you, never saved automatically.
+                  </p>
+                  <button type="button" className="btn-primary" style={{ padding: '4px 14px', fontSize: '0.82rem' }} onClick={handleAiParse}>
+                    Parse
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <div className="form-group">
             <label className="form-label">Bill / Receipt <span>(image, PDF)</span></label>
             <div className="file-zone" onClick={() => fileRef.current?.click()}>

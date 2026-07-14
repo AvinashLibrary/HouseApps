@@ -81,6 +81,57 @@ export function getStatusInfo(status) {
   return GROUP_STATUSES.find(s => s.key === status) ?? GROUP_STATUSES.find(s => s.key === DEFAULT_STATUS);
 }
 
+export const DEFAULT_ALERT_THRESHOLD = 0.85;
+
+export function getAlertThreshold(group) {
+  const t = group?.alertThreshold;
+  return Number.isFinite(t) && t > 0 && t <= 1 ? t : DEFAULT_ALERT_THRESHOLD;
+}
+
+// ── Spending forecast ─────────────────────────────────────────
+// A simple trailing-average projection — NOT a real predictive/AI model, this
+// project has no AI backend to call. It looks at the most recent (up to 3)
+// months with any logged spend and projects the next month's likely spend per
+// category, so Dashboard and Analysis can both show the same numbers instead
+// of computing this independently and risking drift between the two.
+export function computeSpendForecast({ activeGroup, getSubBudget, getSubActualMonth }) {
+  if (!activeGroup || ['travel', 'occasion'].includes(activeGroup.type)) return null;
+
+  const cats = visibleCats(activeGroup.type);
+  const monthsWithData = [];
+  for (let mi = 0; mi < 12; mi++) {
+    const hasData = cats.some(cat => visibleSubs(activeGroup.type, cat).some(sub => getSubActualMonth(sub.key, mi) > 0));
+    if (hasData) monthsWithData.push(mi);
+  }
+  if (monthsWithData.length === 0) return null;
+
+  const lastMonth = monthsWithData[monthsWithData.length - 1];
+  const targetMonth = lastMonth + 1;
+  if (targetMonth > 11) return null; // already projecting past December — nothing left to forecast into
+
+  const trailing = monthsWithData.slice(-3);
+  const threshold = getAlertThreshold(activeGroup);
+
+  let totalPredicted = 0, totalBudget = 0;
+  const perCategory = cats.map(cat => {
+    const subs = visibleSubs(activeGroup.type, cat);
+    const catBudget = subs.reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
+    const predicted = trailing.reduce((s, mi) => {
+      const catSpentThatMonth = subs.reduce((ss, sub) => ss + getSubActualMonth(sub.key, mi), 0);
+      return s + catSpentThatMonth;
+    }, 0) / trailing.length;
+    totalPredicted += predicted;
+    totalBudget += catBudget;
+    const ratio = catBudget > 0 ? predicted / catBudget : 0;
+    return {
+      key: cat.key, label: cat.label, predicted, budget: catBudget, ratio,
+      status: ratio >= 1 ? 'over' : ratio >= threshold ? 'near' : 'ok',
+    };
+  });
+
+  return { targetMonth, trailingMonths: trailing, perCategory, totalPredicted, totalBudget };
+}
+
 // ── Payment modes ─────────────────────────────────────────────
 // bill.paymentMode stores one of these `key` values. Falls back to
 // DEFAULT_PAYMENT_MODE for bills logged before this field existed.
@@ -389,6 +440,40 @@ export function AppProvider({ children }) {
     });
   }, []);
 
+  // ── Budget alerts ────────────────────────────────────────────
+  // group.alertThreshold (0–1) controls when a category counts as "nearing its
+  // limit" — same threshold Dashboard's Smart Insights uses, kept in sync here
+  // so the two features never disagree. group.dismissedAlerts stores alert ids
+  // the user has acknowledged, so a dismissed alert stays dismissed until the
+  // underlying condition changes (see buildAlertId in DashboardTab/BudgetTab).
+  const updateAlertThreshold = useCallback((id, threshold) => {
+    setGroups(prev => {
+      const next = prev.map(g => g.id === id ? { ...g, alertThreshold: threshold } : g);
+      saveLocalGroups(next);
+      return next;
+    });
+  }, []);
+
+  const dismissAlert = useCallback((groupId, alertId) => {
+    setGroups(prev => {
+      const next = prev.map(g => {
+        if (g.id !== groupId) return g;
+        const dismissed = Array.from(new Set([...(g.dismissedAlerts || []), alertId]));
+        return { ...g, dismissedAlerts: dismissed };
+      });
+      saveLocalGroups(next);
+      return next;
+    });
+  }, []);
+
+  const clearDismissedAlerts = useCallback((groupId) => {
+    setGroups(prev => {
+      const next = prev.map(g => g.id === groupId ? { ...g, dismissedAlerts: [] } : g);
+      saveLocalGroups(next);
+      return next;
+    });
+  }, []);
+
   const deleteGroup = useCallback((id) => {
     setGroups(prev => {
       const next = prev.filter(g => g.id !== id);
@@ -536,6 +621,7 @@ export function AppProvider({ children }) {
       loading,
       loadGroups, loadGroupData,
       createGroup, updateGroupLocal, updateGroupStatus, deleteGroup,
+      updateAlertThreshold, dismissAlert, clearDismissedAlerts,
       actuals, getActual, getSubActualMonth, getCatActualMonth, setActualValue,
       billLog, changeLog, submitBill, clearLog,
       getTotalNet, getSubBudget,
