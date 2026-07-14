@@ -1,4 +1,4 @@
-import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats, PAYMENT_MODES, formatAmount } from '../context/AppContext';
+import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats, PAYMENT_MODES, formatAmount, computeSpendForecast } from '../context/AppContext';
 
 function PaymentModeBreakdown({ bills, currency }) {
   const totals = PAYMENT_MODES.map(p => ({
@@ -57,6 +57,53 @@ function TagBreakdown({ bills, currency }) {
             <strong style={{ fontSize: '0.85rem', minWidth: 90, textAlign: 'right' }}>{formatAmount(t.total, currency)}</strong>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+function ForecastBreakdown({ forecast, currency }) {
+  if (!forecast) return null;
+  const fmt = (n) => formatAmount(Math.round(n), currency);
+  const ratio = forecast.totalBudget > 0 ? forecast.totalPredicted / forecast.totalBudget : 0;
+  const STATUS_STYLE = {
+    over: { color: 'var(--red)', label: 'Likely over' },
+    near: { color: '#f59e0b', label: 'Approaching limit' },
+    ok: { color: 'var(--green)', label: 'On track' },
+  };
+
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="card-title">🔮 {MONTHS[forecast.targetMonth]} Spending Forecast</div>
+      <p style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 4 }}>
+        A simple trailing average of your last {forecast.trailingMonths.length} logged month{forecast.trailingMonths.length > 1 ? 's' : ''}
+        ({forecast.trailingMonths.map(mi => MONTHS[mi]).join(', ')}) — a trend projection, not a guarantee, and it gets more reliable the more months you've logged.
+      </p>
+      <div className="tbl-wrap" style={{ marginTop: 10 }}>
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Budget</th>
+              <th>Projected</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {forecast.perCategory.map(c => (
+              <tr key={c.key}>
+                <td>{c.label}</td>
+                <td style={{ color: 'var(--muted)' }}>{fmt(c.budget)}</td>
+                <td>{fmt(c.predicted)}</td>
+                <td style={{ color: STATUS_STYLE[c.status].color, fontSize: '0.82rem' }}>{STATUS_STYLE[c.status].label}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ marginTop: 10, fontSize: '0.85rem' }}>
+        Projected total: <strong>{fmt(forecast.totalPredicted)}</strong>
+        <span style={{ color: 'var(--muted)' }}> of {fmt(forecast.totalBudget)} budget ({Math.round(ratio * 100)}%)</span>
       </div>
     </div>
   );
@@ -145,6 +192,7 @@ export default function AnalysisTab({ onNavigateToRow }) {
   };
 
   let totalSaved = 0, totalOver = 0;
+  const forecast = computeSpendForecast({ activeGroup, getSubBudget, getSubActualMonth });
 
   return (
     <section className="tab-panel active">
@@ -215,6 +263,7 @@ export default function AnalysisTab({ onNavigateToRow }) {
           </strong>
         </div>
       </div>
+      <ForecastBreakdown forecast={forecast} currency={activeGroup.currency} />
       <PaymentModeBreakdown bills={billLog} currency={activeGroup.currency} />
       <TagBreakdown bills={billLog} currency={activeGroup.currency} />
     </section>

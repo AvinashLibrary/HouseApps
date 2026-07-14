@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats, formatAmount } from '../context/AppContext';
+import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats, formatAmount, getAlertThreshold, computeSpendForecast } from '../context/AppContext';
 
 const MOTIVATIONS = [
   'Focusing on one month at a time brings clarity.',
@@ -11,10 +11,189 @@ const MOTIVATIONS = [
 const CAT_ICONS   = { needs: '🏠', wants: '🛍', savings: '💰' };
 const CAT_ICON_BG = { needs: '#dbeafe', wants: '#fef9c3', savings: '#e0e7ff' };
 
+const TONE_COLOR = { warn: 'var(--red)', caution: '#f59e0b', good: 'var(--green)', info: 'var(--muted)' };
+
 function fillColor(ratio) {
   if (ratio >= 1)    return 'fill-red';
   if (ratio >= 0.85) return 'fill-amber';
   return 'fill-green';
+}
+
+// Pure — derives a short, prioritized list of insights from data that already
+// exists in context (no new state, no dependency on a separate alerts feature).
+function buildInsights({ activeGroup, isPool, monthIdx, mi, cats, getSubBudget, getSubActualMonth, getCatActualMonth, totalSpent, totalBudget, billLog, fmt, threshold }) {
+  const insights = [];
+
+  if (totalSpent === 0) {
+    insights.push({
+      tone: 'info', icon: '💡',
+      text: `No expenses logged ${isPool ? 'yet' : `for ${MONTHS[monthIdx]}`}. Add one to start tracking.`,
+    });
+  }
+
+  // Per-category budget status
+  cats.forEach(cat => {
+    const catBudget = visibleSubs(activeGroup.type, cat).reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
+    const catSpent = getCatActualMonth(cat.key, mi);
+    if (catBudget <= 0 || catSpent <= 0) return;
+    const ratio = catSpent / catBudget;
+    if (ratio >= 1) {
+      insights.push({ tone: 'warn', icon: '⚠️', text: `You're over budget in ${cat.label} by ${fmt(catSpent - catBudget)}.` });
+    } else if (ratio >= threshold) {
+      insights.push({ tone: 'caution', icon: '🟡', text: `${cat.label} is at ${Math.round(ratio * 100)}% of its budget — ${fmt(catBudget - catSpent)} left.` });
+    } else if (ratio <= 0.5) {
+      insights.push({ tone: 'good', icon: '✅', text: `${cat.label} is well under budget — only ${Math.round(ratio * 100)}% used so far.` });
+    }
+  });
+
+  // Month-over-month comparison (only meaningful when there's a real month axis)
+  if (!isPool && monthIdx > 0) {
+    let prevSpent = 0;
+    cats.forEach(cat => visibleSubs(activeGroup.type, cat).forEach(sub => {
+      prevSpent += getSubActualMonth(sub.key, monthIdx - 1);
+    }));
+    if (prevSpent > 0 && totalSpent > 0) {
+      const pctChange = ((totalSpent - prevSpent) / prevSpent) * 100;
+      if (pctChange >= 10) {
+        insights.push({ tone: 'warn', icon: '📈', text: `You've spent ${Math.round(pctChange)}% more than ${MONTHS[monthIdx - 1]}.` });
+      } else if (pctChange <= -10) {
+        insights.push({ tone: 'good', icon: '📉', text: `Nice — ${Math.round(Math.abs(pctChange))}% less spent than ${MONTHS[monthIdx - 1]}.` });
+      }
+    }
+  }
+
+  // Biggest single expense in scope
+  const scopedBills = isPool ? billLog : billLog.filter(b => b.monthIdx === mi);
+  if (scopedBills.length > 0) {
+    const biggest = scopedBills.reduce((max, b) => (b.amount > max.amount ? b : max), scopedBills[0]);
+    insights.push({
+      tone: 'info', icon: '🧾',
+      text: `Your biggest expense ${isPool ? '' : 'this month '}was ${fmt(biggest.amount)}${biggest.merchant ? ` at ${biggest.merchant}` : ` on ${biggest.subCatLabel}`}.`,
+    });
+  }
+
+  // Prioritize warnings, then cautions, then good news, then info — show at most 4
+  const rank = { warn: 0, caution: 1, good: 2, info: 3 };
+  return insights.sort((a, b) => rank[a.tone] - rank[b.tone]).slice(0, 4);
+}
+
+// Stable per (category, month, severity) — dismissing an "over budget" alert
+// doesn't hide a later, worse one, and it naturally resets when the month rolls over.
+function buildAlertId(catKey, mi, type) {
+  return `${catKey}-${mi}-${type}`;
+}
+
+function buildAlerts({ activeGroup, isPool, mi, cats, getSubBudget, getCatActualMonth, threshold, fmt }) {
+  const alerts = [];
+  cats.forEach(cat => {
+    const catBudget = visibleSubs(activeGroup.type, cat).reduce((s, sub) => s + getSubBudget(activeGroup, cat, sub), 0);
+    const catSpent = getCatActualMonth(cat.key, mi);
+    if (catBudget <= 0 || catSpent <= 0) return;
+    const ratio = catSpent / catBudget;
+    if (ratio >= 1) {
+      alerts.push({
+        id: buildAlertId(cat.key, mi, 'over'), tone: 'warn', icon: '⚠️',
+        text: `${cat.label} is over budget by ${fmt(catSpent - catBudget)}${isPool ? '' : ` this ${MONTHS[mi] || 'month'}`}.`,
+      });
+    } else if (ratio >= threshold) {
+      alerts.push({
+        id: buildAlertId(cat.key, mi, 'near'), tone: 'caution', icon: '🟡',
+        text: `${cat.label} has reached ${Math.round(ratio * 100)}% of its budget — ${fmt(catBudget - catSpent)} left.`,
+      });
+    }
+  });
+  return alerts;
+}
+
+function BudgetAlerts({ alerts, dismissedIds, onDismiss, onResetDismissed }) {
+  const visible = alerts.filter(a => !dismissedIds.includes(a.id));
+  const hiddenCount = alerts.length - visible.length;
+
+  if (visible.length === 0 && hiddenCount === 0) return null;
+
+  return (
+    <div className="cat-card" style={{ marginTop: 16, borderLeft: visible.some(a => a.tone === 'warn') ? '3px solid var(--red)' : visible.length ? '3px solid #f59e0b' : undefined }}>
+      <div className="cat-card-header">
+        <div className="cat-card-name" style={{ flex: 1 }}>🔔 Budget Alerts</div>
+        {hiddenCount > 0 && (
+          <button
+            onClick={onResetDismissed}
+            style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: '0.75rem', cursor: 'pointer' }}
+          >
+            {hiddenCount} dismissed · reset
+          </button>
+        )}
+      </div>
+      {visible.length === 0 ? (
+        <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginTop: 8 }}>All caught up — no active alerts.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+          {visible.map(a => (
+            <div key={a.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <span>{a.icon}</span>
+              <span style={{ flex: 1, fontSize: '0.85rem', color: TONE_COLOR[a.tone] }}>{a.text}</span>
+              <button
+                onClick={() => onDismiss(a.id)}
+                title="Dismiss"
+                style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: '0.85rem', lineHeight: 1 }}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SpendForecast({ forecast, fmt }) {
+  if (!forecast) return null;
+  const flagged = forecast.perCategory.filter(c => c.status !== 'ok');
+  const ratio = forecast.totalBudget > 0 ? forecast.totalPredicted / forecast.totalBudget : 0;
+
+  return (
+    <div className="cat-card" style={{ marginTop: 16 }}>
+      <div className="cat-card-header">
+        <div className="cat-card-name" style={{ flex: 1 }}>🔮 {MONTHS[forecast.targetMonth]} Forecast</div>
+      </div>
+      <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 4 }}>
+        Based on your average spend over the last {forecast.trailingMonths.length} month{forecast.trailingMonths.length > 1 ? 's' : ''} — a simple trend projection, not a guarantee.
+      </p>
+      <div style={{ marginTop: 10, fontSize: '0.85rem' }}>
+        Projected total: <strong>{fmt(forecast.totalPredicted)}</strong>
+        <span style={{ color: 'var(--muted)' }}> of {fmt(forecast.totalBudget)} budget ({Math.round(ratio * 100)}%)</span>
+      </div>
+      {flagged.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+          {flagged.map(c => (
+            <div key={c.key} style={{ fontSize: '0.82rem', color: c.status === 'over' ? 'var(--red)' : '#f59e0b' }}>
+              {c.status === 'over' ? '⚠️' : '🟡'} {c.label} is on track to {c.status === 'over' ? 'exceed' : 'approach'} its budget — projected {fmt(c.predicted)} of {fmt(c.budget)}.
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SmartInsights({ insights }) {
+  if (insights.length === 0) return null;
+  return (
+    <div className="cat-card" style={{ marginTop: 16 }}>
+      <div className="cat-card-header">
+        <div className="cat-card-name" style={{ flex: 1 }}>✨ Smart Insights</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+        {insights.map((ins, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            <span>{ins.icon}</span>
+            <span style={{ fontSize: '0.85rem', color: TONE_COLOR[ins.tone] }}>{ins.text}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function TopMerchants({ billLog, currency }) {
@@ -52,7 +231,7 @@ function TopMerchants({ billLog, currency }) {
 }
 
 export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
-  const { activeGroup, getTotalNet, getSubBudget, getCatActualMonth, getSubActualMonth, billLog } = useApp();
+  const { activeGroup, getTotalNet, getSubBudget, getCatActualMonth, getSubActualMonth, billLog, dismissAlert, clearDismissedAlerts } = useApp();
   const [monthIdx, setMonthIdx] = useState(11);
   const [openCats, setOpenCats] = useState({});
 
@@ -77,6 +256,17 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
   const donutCirc = 87.96;
   const donutFill = spentRatio * donutCirc;
   const mot = MOTIVATIONS[mi % MOTIVATIONS.length];
+
+  const cats = visibleCats(activeGroup.type);
+  const threshold = getAlertThreshold(activeGroup);
+  const insights = buildInsights({
+    activeGroup, isPool, monthIdx, mi, cats,
+    getSubBudget, getSubActualMonth, getCatActualMonth,
+    totalSpent, totalBudget, billLog, fmt, threshold,
+  });
+  const alerts = buildAlerts({ activeGroup, isPool, mi, cats, getSubBudget, getCatActualMonth, threshold, fmt });
+  const dismissedIds = activeGroup.dismissedAlerts || [];
+  const forecast = computeSpendForecast({ activeGroup, getSubBudget, getSubActualMonth });
 
   const toggleCard = (catKey) => setOpenCats(prev => ({ ...prev, [catKey]: !prev[catKey] }));
 
@@ -128,6 +318,17 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
           </div>
         </div>
       </div>
+
+      <BudgetAlerts
+        alerts={alerts}
+        dismissedIds={dismissedIds}
+        onDismiss={(id) => dismissAlert(activeGroup.id, id)}
+        onResetDismissed={() => clearDismissedAlerts(activeGroup.id)}
+      />
+
+      <SmartInsights insights={insights} />
+
+      <SpendForecast forecast={forecast} fmt={fmt} />
 
       <p className="drag-hint">⊙ Click a category to expand sub-category breakdown.</p>
 
