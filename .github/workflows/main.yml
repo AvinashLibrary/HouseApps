@@ -3,7 +3,7 @@ name: Montara CI
 on:
   push:
     branches:
-      - main
+      - master
 
 jobs:
   montara:
