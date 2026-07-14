@@ -12,15 +12,22 @@ export default function ReceiptsTab({ onAddExpense, onNavigateToRow }) {
   const [monthFilter, setMonthFilter] = useState('all'); // 'all' or index
   const [catFilter, setCatFilter] = useState('');
   const [modeFilter, setModeFilter] = useState('');
+  const [tagFilter, setTagFilter] = useState('');
+  const [merchantFilter, setMerchantFilter] = useState('');
 
   if (!activeGroup) return null;
 
   const fmt = (n) => formatAmount(n, activeGroup.currency);
 
+  const allTags = Array.from(new Set(billLog.flatMap(b => b.tags || []))).sort();
+  const allMerchants = Array.from(new Set(billLog.map(b => b.merchant).filter(Boolean))).sort();
+
   const bills = billLog.filter(b => {
     if (monthFilter !== 'all' && b.monthIdx !== monthFilter) return false;
     if (catFilter && b.subCatKey !== catFilter) return false;
     if (modeFilter && (b.paymentMode || 'other') !== modeFilter) return false;
+    if (tagFilter && !(b.tags || []).includes(tagFilter)) return false;
+    if (merchantFilter && b.merchant !== merchantFilter) return false;
     return true;
   });
 
@@ -57,6 +64,18 @@ export default function ReceiptsTab({ onAddExpense, onNavigateToRow }) {
               <option value="">All Payment Modes</option>
               {PAYMENT_MODES.map(p => <option key={p.key} value={p.key}>{p.icon} {p.label}</option>)}
             </select>
+            {allTags.length > 0 && (
+              <select style={{ width: 'auto', minWidth: 130 }} value={tagFilter} onChange={e => setTagFilter(e.target.value)}>
+                <option value="">All Tags</option>
+                {allTags.map(t => <option key={t} value={t}>#{t}</option>)}
+              </select>
+            )}
+            {allMerchants.length > 0 && (
+              <select style={{ width: 'auto', minWidth: 160 }} value={merchantFilter} onChange={e => setMerchantFilter(e.target.value)}>
+                <option value="">All Merchants</option>
+                {allMerchants.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            )}
           </div>
 
           {bills.length === 0 ? (
@@ -71,7 +90,10 @@ export default function ReceiptsTab({ onAddExpense, onNavigateToRow }) {
               {bills.map(bill => (
                 <div className="bill-card" key={bill.id ?? `${bill.fileName}-${bill.ts}`}>
                   <div className="bill-card-top">
-                    <div style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>📎 {bill.fileName}</div>
+                    <div>
+                      {bill.merchant && <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{bill.merchant}</div>}
+                      <div style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>📎 {bill.fileName}</div>
+                    </div>
                     <div className="bill-card-amt">{fmt(bill.amount)}</div>
                   </div>
                   <div className="bill-badges" style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
@@ -87,6 +109,13 @@ export default function ReceiptsTab({ onAddExpense, onNavigateToRow }) {
                     )}
                   </div>
                   {bill.note && <div className="bill-card-note" style={{ marginTop: 6 }}>{bill.note}</div>}
+                  {bill.tags && bill.tags.length > 0 && (
+                    <div style={{ display: 'flex', gap: 4, marginTop: 6, flexWrap: 'wrap' }}>
+                      {bill.tags.map(t => (
+                        <span key={t} style={{ fontSize: '0.7rem', padding: '2px 8px', borderRadius: 4, background: 'var(--surface2)', color: 'var(--muted)' }}>#{t}</span>
+                      ))}
+                    </div>
+                  )}
                   <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginTop: 8 }}>{formatTs(bill.ts)}</div>
                   <a
                     style={{ display: 'inline-block', marginTop: 8, fontSize: '0.78rem', color: 'var(--accent2)', cursor: 'pointer' }}

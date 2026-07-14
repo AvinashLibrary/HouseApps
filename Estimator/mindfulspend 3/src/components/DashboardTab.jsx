@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats } from '../context/AppContext';
+import { useApp, MONTHS, getSubLabel, visibleSubs, visibleCats, formatAmount } from '../context/AppContext';
 
 const MOTIVATIONS = [
   'Focusing on one month at a time brings clarity.',
@@ -11,21 +11,54 @@ const MOTIVATIONS = [
 const CAT_ICONS   = { needs: '🏠', wants: '🛍', savings: '💰' };
 const CAT_ICON_BG = { needs: '#dbeafe', wants: '#fef9c3', savings: '#e0e7ff' };
 
-function fmt(n) { return '₹' + Math.round(n).toLocaleString('en-IN'); }
-
 function fillColor(ratio) {
   if (ratio >= 1)    return 'fill-red';
   if (ratio >= 0.85) return 'fill-amber';
   return 'fill-green';
 }
 
+function TopMerchants({ billLog, currency }) {
+  const totalsMap = new Map();
+  billLog.forEach(b => {
+    if (!b.merchant) return;
+    totalsMap.set(b.merchant, (totalsMap.get(b.merchant) || 0) + b.amount);
+  });
+  const totals = Array.from(totalsMap.entries())
+    .map(([merchant, total]) => ({ merchant, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 5);
+
+  if (totals.length === 0) return null;
+  const maxTotal = Math.max(...totals.map(m => m.total));
+
+  return (
+    <div className="cat-card" style={{ marginTop: 16 }}>
+      <div className="cat-card-header">
+        <div className="cat-card-name" style={{ flex: 1 }}>Top Merchants</div>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 10 }}>
+        {totals.map(m => (
+          <div key={m.merchant} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ flex: 1, fontSize: '0.82rem' }}>{m.merchant}</span>
+            <div style={{ flex: 2, background: 'var(--surface2)', borderRadius: 4, height: 7, overflow: 'hidden' }}>
+              <div style={{ width: `${(m.total / maxTotal) * 100}%`, height: '100%', background: 'var(--accent)' }} />
+            </div>
+            <strong style={{ fontSize: '0.82rem', minWidth: 80, textAlign: 'right' }}>{formatAmount(m.total, currency)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
-  const { activeGroup, getTotalNet, getSubBudget, getCatActualMonth, getSubActualMonth } = useApp();
+  const { activeGroup, getTotalNet, getSubBudget, getCatActualMonth, getSubActualMonth, billLog } = useApp();
   const [monthIdx, setMonthIdx] = useState(11);
   const [openCats, setOpenCats] = useState({});
 
   if (!activeGroup) return null;
 
+  const fmt = (n) => formatAmount(Math.round(n), activeGroup.currency);
   const isPool = ['travel', 'occasion'].includes(activeGroup.type);
   const mi = isPool ? 0 : monthIdx;
 
@@ -143,6 +176,8 @@ export default function DashboardTab({ onAddExpense, onNavigateToRow }) {
           );
         })}
       </div>
+
+      <TopMerchants billLog={billLog} currency={activeGroup.currency} />
 
       <div className="motivation-card">
         <div className="mot-icon">🧘</div>

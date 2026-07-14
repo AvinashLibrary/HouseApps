@@ -28,6 +28,40 @@ function PaymentModeBreakdown({ bills, currency }) {
   );
 }
 
+function TagBreakdown({ bills, currency }) {
+  const totalsMap = new Map();
+  bills.forEach(b => (b.tags || []).forEach(t => {
+    totalsMap.set(t, (totalsMap.get(t) || 0) + b.amount);
+  }));
+  const totals = Array.from(totalsMap.entries())
+    .map(([tag, total]) => ({ tag, total }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, 8);
+
+  if (totals.length === 0) return null;
+  const maxTotal = Math.max(...totals.map(t => t.total));
+
+  return (
+    <div className="card" style={{ marginTop: 16 }}>
+      <div className="card-title">Top Tags</div>
+      <p style={{ fontSize: '0.72rem', color: 'var(--muted)', marginTop: 4 }}>
+        A bill can carry more than one tag, so totals here may add up to more than your overall spend.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 10 }}>
+        {totals.map(t => (
+          <div key={t.tag} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ flex: 1, fontSize: '0.85rem' }}>#{t.tag}</span>
+            <div style={{ flex: 2, background: 'var(--surface2)', borderRadius: 4, height: 8, overflow: 'hidden' }}>
+              <div style={{ width: `${(t.total / maxTotal) * 100}%`, height: '100%', background: 'var(--accent2)' }} />
+            </div>
+            <strong style={{ fontSize: '0.85rem', minWidth: 90, textAlign: 'right' }}>{formatAmount(t.total, currency)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PoolAnalysis({ activeGroup, getSubBudget, getSubActualMonth, onNavigateToRow, billLog }) {
   let totalSaved = 0, totalOver = 0;
   const fmt = (n) => formatAmount(Math.round(n), activeGroup.currency);
@@ -87,6 +121,7 @@ function PoolAnalysis({ activeGroup, getSubBudget, getSubActualMonth, onNavigate
         </div>
       </div>
       <PaymentModeBreakdown bills={billLog} currency={activeGroup.currency} />
+      <TagBreakdown bills={billLog} currency={activeGroup.currency} />
     </section>
   );
 }
@@ -181,6 +216,7 @@ export default function AnalysisTab({ onNavigateToRow }) {
         </div>
       </div>
       <PaymentModeBreakdown bills={billLog} currency={activeGroup.currency} />
+      <TagBreakdown bills={billLog} currency={activeGroup.currency} />
     </section>
   );
 }

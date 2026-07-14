@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs, getCurrencySymbol, formatAmount, PAYMENT_MODES, DEFAULT_PAYMENT_MODE } from '../context/AppContext';
+import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs, getCurrencySymbol, formatAmount, PAYMENT_MODES, DEFAULT_PAYMENT_MODE, normalizeTags } from '../context/AppContext';
 
 export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
-  const { activeGroup, submitBill, showToast } = useApp();
+  const { activeGroup, submitBill, showToast, billLog } = useApp();
   const [amount, setAmount]     = useState('');
   const [subCatKey, setSubCatKey] = useState('');
   const [monthIdx, setMonthIdx] = useState(defaultMonthIdx);
@@ -11,7 +11,13 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurMonths, setRecurMonths] = useState(3);
   const [paymentMode, setPaymentMode] = useState(DEFAULT_PAYMENT_MODE);
+  const [tagsInput, setTagsInput] = useState('');
+  const [merchant, setMerchant] = useState('');
   const fileRef = useRef();
+
+  // Recently used tags/merchants across this group's bills, for autocomplete
+  const recentTags = Array.from(new Set(billLog.flatMap(b => b.tags || []))).slice(0, 20);
+  const recentMerchants = Array.from(new Set(billLog.map(b => b.merchant).filter(Boolean))).slice(0, 20);
 
   useEffect(() => {
     if (open) {
@@ -21,6 +27,8 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       setIsRecurring(false);
       setRecurMonths(3);
       setPaymentMode(DEFAULT_PAYMENT_MODE);
+      setTagsInput('');
+      setMerchant('');
     }
   }, [open, defaultMonthIdx]);
 
@@ -57,10 +65,13 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       note: note.trim(),
       recurring,
       paymentMode,
+      tags: normalizeTags(tagsInput),
+      merchant: merchant.trim(),
     });
 
     const recurNote = recurring ? ` for ${recurring.months} months` : '';
-    showToast(`✓ ${formatAmount(amt, activeGroup.currency)} added to ${subCatLabel}${isPool ? '' : ` · ${MONTHS[monthIdx]}`}${recurNote}`);
+    const merchantNote = merchant.trim() ? ` at ${merchant.trim()}` : '';
+    showToast(`✓ ${formatAmount(amt, activeGroup.currency)}${merchantNote} added to ${subCatLabel}${isPool ? '' : ` · ${MONTHS[monthIdx]}`}${recurNote}`);
     onClose();
   };
 
@@ -84,6 +95,16 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
             <label className="form-label">Bill Total ({currencySymbol}) <span>— read from your bill</span></label>
             <input className="modal-inp" type="number" placeholder="e.g. 2500" min="0"
               value={amount} onChange={e => setAmount(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Merchant <span>(optional)</span></label>
+            <input className="modal-inp" type="text" list="bill-merchant-suggestions" placeholder="e.g. Big Bazaar"
+              value={merchant} onChange={e => setMerchant(e.target.value)} />
+            {recentMerchants.length > 0 && (
+              <datalist id="bill-merchant-suggestions">
+                {recentMerchants.map(m => <option key={m} value={m} />)}
+              </datalist>
+            )}
           </div>
           <div className="form-group">
             <label className="form-label">Category</label>
@@ -136,6 +157,16 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
             <label className="form-label">Note <span>(optional)</span></label>
             <input className="modal-inp" type="text" placeholder="e.g. Big Bazaar weekly shop"
               value={note} onChange={e => setNote(e.target.value)} />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Tags <span>(optional, comma-separated)</span></label>
+            <input className="modal-inp" type="text" list="bill-tag-suggestions" placeholder="e.g. work, reimbursable"
+              value={tagsInput} onChange={e => setTagsInput(e.target.value)} />
+            {recentTags.length > 0 && (
+              <datalist id="bill-tag-suggestions">
+                {recentTags.map(t => <option key={t} value={t} />)}
+              </datalist>
+            )}
           </div>
         </div>
         <div className="modal-footer">

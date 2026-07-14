@@ -7,19 +7,20 @@ import '../styles/HubTopNav.css';
  * Inside a group, AppView's Sidebar takes over — this component isn't rendered.
  */
 export default function HubTopNav({ hasGroups, onNewGroup, onViewChange }) {
-  const label = hasGroups ? 'Household Groups' : 'HouseApps Fiscal';
+  const label = hasGroups ? 'MindfulSpend' : 'HouseApps Fiscal';
   return (
     <header className="htn-root">
       <div className="htn-inner">
         <div className="htn-brand">
           <span className="htn-brand-icon" aria-hidden="true">
             {/* people / household icon */}
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="7.5" cy="6" r="2.5" fill="currentColor" />
               <path d="M2 15.5c0-3 2.5-5 5.5-5s5.5 2 5.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" />
               <circle cx="14" cy="5.5" r="2" fill="currentColor" opacity="0.6" />
               <path d="M16 14.5c0-2.5-1.8-4-4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.6" />
-            </svg>
+            </svg> */}
+            <div className="brand-icon">M</div>
           </span>
           <span className="htn-brand-name">{label}</span>
         </div>

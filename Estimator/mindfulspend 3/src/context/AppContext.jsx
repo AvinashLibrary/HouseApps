@@ -98,6 +98,26 @@ export function getPaymentModeInfo(key) {
   return PAYMENT_MODES.find(p => p.key === key) ?? PAYMENT_MODES.find(p => p.key === DEFAULT_PAYMENT_MODE);
 }
 
+// ── Tags ──────────────────────────────────────────────────────
+// bill.tags stores a small array of freeform strings, e.g. ['work', 'reimbursable'].
+// Tags are normalized (trimmed, lowercased, deduped, capped) so the same tag
+// typed differently ("Work" vs "work ") still groups together for search/analysis.
+const MAX_TAGS_PER_BILL = 6;
+
+export function normalizeTags(input) {
+  const raw = Array.isArray(input) ? input : String(input || '').split(',');
+  const seen = new Set();
+  const out = [];
+  for (const t of raw) {
+    const clean = String(t).trim().toLowerCase().replace(/\s+/g, ' ');
+    if (!clean || seen.has(clean)) continue;
+    seen.add(clean);
+    out.push(clean);
+    if (out.length >= MAX_TAGS_PER_BILL) break;
+  }
+  return out;
+}
+
 export const GROUP_TYPES = [
   { key: 'household',  label: 'Household',  icon: '🏠', desc: 'Shared household bills & budget' },
   { key: 'roommates',  label: 'Roommates',  icon: '🛋️', desc: 'Flatmates splitting rent & expenses' },
@@ -422,10 +442,12 @@ export function AppProvider({ children }) {
   // tagged with a shared recurringId and an occurrence index so they can be
   // identified together later (e.g. for a future "cancel remaining" action).
   const submitBill = useCallback(async (groupId, billPayload) => {
-    const { amount, subCatKey, subCatLabel, monthIdx, note, fileName, recurring, paymentMode } = billPayload;
+    const { amount, subCatKey, subCatLabel, monthIdx, note, fileName, recurring, paymentMode, tags, merchant } = billPayload;
 
     const groupType = groups.find(g => g.id === groupId)?.type;
     const mode = paymentMode || DEFAULT_PAYMENT_MODE;
+    const cleanTags = normalizeTags(tags);
+    const cleanMerchant = String(merchant || '').trim();
     const isRecurring = !!recurring?.months && recurring.months > 1;
     const span = isRecurring ? Math.min(recurring.months, 12 - monthIdx) : 1;
     const monthIdxs = Array.from({ length: span }, (_, i) => monthIdx + i);
@@ -446,7 +468,7 @@ export function AppProvider({ children }) {
 
     const ts = new Date();
     const billEntries = monthIdxs.map((mi, i) => ({
-      ts, fileName, amount, subCatKey, subCatLabel, monthIdx: mi, note, paymentMode: mode,
+      ts, fileName, amount, subCatKey, subCatLabel, monthIdx: mi, note, paymentMode: mode, tags: cleanTags, merchant: cleanMerchant,
       recurringId, occurrence: i + 1, occurrenceCount: span,
       id: Date.now() + i,
     }));
