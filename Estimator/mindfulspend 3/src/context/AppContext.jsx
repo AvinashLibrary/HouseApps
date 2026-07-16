@@ -577,6 +577,13 @@ export function AppProvider({ children }) {
     }
   }, [showToast, groups]);
 
+  // Thin passthrough — this is a read-only scan, not persisted app state, but
+  // routed through context anyway so BillModal never has to import `api`
+  // directly, same as every other server call in this app.
+  const scanReceipt = useCallback(async (groupId, file) => {
+    return api.scanReceipt(groupId, file);
+  }, []);
+
   const clearLog = useCallback(() => {
     setChangeLog([]);
     setBillLog([]);
@@ -623,7 +630,7 @@ export function AppProvider({ children }) {
       createGroup, updateGroupLocal, updateGroupStatus, deleteGroup,
       updateAlertThreshold, dismissAlert, clearDismissedAlerts,
       actuals, getActual, getSubActualMonth, getCatActualMonth, setActualValue,
-      billLog, changeLog, submitBill, clearLog,
+      billLog, changeLog, submitBill, scanReceipt, clearLog,
       getTotalNet, getSubBudget,
       toast, showToast,
     }}>

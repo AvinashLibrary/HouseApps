@@ -1,0 +1,21 @@
+{
+  "gemini:3.1-flash-lite": {
+    "requests": 1,
+    "tokens": 52,
+    "recentRequestTimestamps": [
+      1784193054247
+    ],
+    "recentTokenEvents": [
+      {
+        "ts": 1784193054247,
+        "tokens": 52
+      }
+    ]
+  },
+  "gemini:3.1-flash-lite::2026-07-15": {
+    "requests": 1,
+    "tokens": 52,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  }
+}

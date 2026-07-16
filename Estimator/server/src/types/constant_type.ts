@@ -159,6 +159,18 @@ export const PostBillSchema = z.object({
 
 export type PostBillRequest = z.infer<typeof PostBillSchema> & { groupId: string };
 
+// ── OCR ──────────────────────────────────────────────────────────
+// No zod body schema here — the request is multipart/form-data (an image
+// file), not JSON, so there's no req.body to validate the usual way.
+
+export interface OcrResult {
+  merchant: string | null;
+  amount: number | null;
+  currency: string | null;   // ISO-ish code or symbol as seen on the receipt, e.g. "INR" or "₹"
+  date: string | null;       // YYYY-MM-DD if legible, else null
+  description: string | null; // short summary of what was purchased — used client-side for category matching
+}
+
 // ═══════════════════════════════════════════ LOGS ═════
 
 export type ChangeSource = 'manual' | 'bill';

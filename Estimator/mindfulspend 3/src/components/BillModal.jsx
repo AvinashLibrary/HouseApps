@@ -3,12 +3,13 @@ import { useApp, BUDGET_STRUCTURE, MONTHS, getSubLabel, visibleSubs, getCurrency
 import { parseExpenseText } from '../services/expenseParser';
 
 export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
-  const { activeGroup, submitBill, showToast, billLog } = useApp();
+  const { activeGroup, submitBill, scanReceipt, showToast, billLog } = useApp();
   const [amount, setAmount]     = useState('');
   const [subCatKey, setSubCatKey] = useState('');
   const [monthIdx, setMonthIdx] = useState(defaultMonthIdx);
   const [note, setNote]         = useState('');
   const [fileName, setFileName] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurMonths, setRecurMonths] = useState(3);
   const [paymentMode, setPaymentMode] = useState(DEFAULT_PAYMENT_MODE);
@@ -16,6 +17,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   const [merchant, setMerchant] = useState('');
   const [aiText, setAiText] = useState('');
   const [showAi, setShowAi] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
   const fileRef = useRef();
 
   // Recently used tags/merchants across this group's bills, for autocomplete
@@ -25,6 +27,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
   useEffect(() => {
     if (open) {
       setAmount(''); setNote(''); setFileName('');
+      setSelectedFile(null);
       setMonthIdx(defaultMonthIdx);
       setSubCatKey('');
       setIsRecurring(false);
@@ -34,6 +37,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       setMerchant('');
       setAiText('');
       setShowAi(false);
+      setOcrLoading(false);
     }
   }, [open, defaultMonthIdx]);
 
@@ -45,12 +49,13 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
 
   const handleFile = (e) => {
     const f = e.target.files[0];
-    if (f) setFileName(f.name);
+    if (f) { setFileName(f.name); setSelectedFile(f); }
   };
 
-  const handleAiParse = () => {
-    if (!aiText.trim()) return;
-    const parsed = parseExpenseText(aiText);
+  const handleAiParse = (textOverride) => {
+    const source = textOverride ?? aiText;
+    if (!source.trim()) return;
+    const parsed = parseExpenseText(source);
 
     // Only accept a parsed category if it's actually a visible sub-category
     // for this group's type — e.g. "investments" is hidden for travel groups.
@@ -64,12 +69,52 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
     if (parsed.tags.length > 0) setTagsInput(parsed.tags.join(', '));
     if (parsed.recurring && !isPool) setIsRecurring(true);
 
+    return { amountFound: !!parsed.amount, categoryFound };
+  };
+
+  const handleManualParse = () => {
+    const result = handleAiParse();
+    if (!result) return;
     const missing = [];
-    if (!parsed.amount) missing.push('amount');
-    if (!categoryFound) missing.push('category');
+    if (!result.amountFound) missing.push('amount');
+    if (!result.categoryFound) missing.push('category');
     showToast(missing.length > 0
       ? `✨ Parsed what I could — please fill in ${missing.join(' and ')} below.`
       : '✨ Parsed! Double-check the fields below before saving.');
+  };
+
+  const handleScanReceipt = async () => {
+    if (!selectedFile) return;
+    if (!selectedFile.type?.startsWith('image/')) {
+      showToast('⚠ Receipt scanning only works on images (JPG, PNG) — PDFs need to be filled in manually.');
+      return;
+    }
+    setOcrLoading(true);
+    try {
+      const { rawText, amountGuess } = await scanReceipt(activeGroup.id, selectedFile);
+      if (!rawText.trim()) {
+        showToast("⚠ Couldn't read any text off that image — try a clearer photo, or fill in the details manually.");
+        return;
+      }
+      setAiText(rawText);
+      setShowAi(true);
+      const result = handleAiParse(rawText);
+      // The server's total-amount detection is tuned for receipt layouts
+      // ("Total:", "Grand Total:") — use it as a fallback if the general
+      // client-side parser didn't already find a number.
+      if (!result?.amountFound && amountGuess) setAmount(String(amountGuess));
+
+      const missing = [];
+      if (!result?.amountFound && !amountGuess) missing.push('amount');
+      if (!result?.categoryFound) missing.push('category');
+      showToast(missing.length > 0
+        ? `📄 Scanned — please fill in ${missing.join(' and ')} below.`
+        : '📄 Scanned! Double-check the fields below before saving.');
+    } catch (e) {
+      showToast(`⚠ Couldn't scan that receipt: ${e.message}`);
+    } finally {
+      setOcrLoading(false);
+    }
   };
 
   const submit = async () => {
@@ -133,7 +178,7 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
                   <p style={{ fontSize: '0.72rem', color: 'var(--muted)', margin: 0 }}>
                     This fills in fields below as a starting draft — always reviewed by you, never saved automatically.
                   </p>
-                  <button type="button" className="btn-primary" style={{ padding: '4px 14px', fontSize: '0.82rem' }} onClick={handleAiParse}>
+                  <button type="button" className="btn-primary" style={{ padding: '4px 14px', fontSize: '0.82rem' }} onClick={handleManualParse}>
                     Parse
                   </button>
                 </div>
@@ -147,6 +192,18 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
               {fileName ? <div style={{ color: 'var(--accent2)', fontWeight: 500 }}>📄 {fileName}</div>
                         : <div>📄 Click to select a file</div>}
             </div>
+            {selectedFile && selectedFile.type?.startsWith('image/') && (
+              <div style={{ marginTop: 8 }}>
+                <button
+                  type="button"
+                  onClick={handleScanReceipt}
+                  disabled={ocrLoading}
+                  style={{ background: 'none', border: '1px dashed var(--border)', borderRadius: 6, padding: '6px 12px', cursor: ocrLoading ? 'default' : 'pointer', color: 'var(--accent2)', fontSize: '0.82rem' }}
+                >
+                  {ocrLoading ? '🔍 Scanning… this can take a few seconds' : '🔍 Scan Receipt for details'}
+                </button>
+              </div>
+            )}
           </div>
           <div className="form-group">
             <label className="form-label">Bill Total ({currencySymbol}) <span>— read from your bill</span></label>
