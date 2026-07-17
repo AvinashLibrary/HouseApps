@@ -32,6 +32,8 @@ import { ocrRoutes } from './features/ocr/ocr.routes';
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
 import { parse } from 'yaml';
+import { LlmFallbackRepository } from './features/ocr/llm-fallback.repository';
+import { OcrEngine } from './features/ocr/ocr-engine';
 
 
 
@@ -51,8 +53,10 @@ const actualsService  = new ActualsService(actualsRepo, logsRepo);
 const billsService    = new BillsService(billsRepo, actualsRepo, logsRepo);
 const analysisService = new AnalysisService(actualsRepo);
 
-const ocrRepo    = new OcrRepository();
-const ocrService = new OcrService(ocrRepo);
+// const ocrRepo    = new OcrRepository();
+const ocrEngineInstance = new OcrEngine();
+const llmFallbackRepo = new LlmFallbackRepository();
+const ocrService = new OcrService(ocrEngineInstance, llmFallbackRepo);
 
 // ── express app ───────────────────────────────────────────────────
 const app = express();

@@ -34,3 +34,11 @@ export interface UsageRecord {
   recentRequestTimestamps: number[];
   recentTokenEvents: { ts: number; tokens: number }[];
 }
+
+export interface GeminiPart {
+  text?: string;
+  inlineData?: {
+    mimeType: string;
+    data: string; // base64
+  };
+}

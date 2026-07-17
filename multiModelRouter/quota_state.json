@@ -1,20 +1,31 @@
 {
   "gemini:3.1-flash-lite": {
-    "requests": 1,
-    "tokens": 52,
+    "requests": 17,
+    "tokens": 40596,
     "recentRequestTimestamps": [
-      1784193054247
+      1784265948665,
+      1784266011823
     ],
     "recentTokenEvents": [
       {
-        "ts": 1784193054247,
-        "tokens": 52
+        "ts": 1784265948665,
+        "tokens": 6971
+      },
+      {
+        "ts": 1784266011823,
+        "tokens": 9179
       }
     ]
   },
   "gemini:3.1-flash-lite::2026-07-15": {
-    "requests": 1,
-    "tokens": 52,
+    "requests": 2,
+    "tokens": 897,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:3.1-flash-lite::2026-07-16": {
+    "requests": 15,
+    "tokens": 39699,
     "recentRequestTimestamps": [],
     "recentTokenEvents": []
   }

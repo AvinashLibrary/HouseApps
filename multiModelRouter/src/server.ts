@@ -4,7 +4,15 @@ import { LLMRouter } from "./router.js";
 import { callModel } from "./index.ts";
 
 const app = express();
-app.use(express.json());
+
+app.use(express.json({
+  limit: "20mb"
+}));
+
+app.use(express.urlencoded({
+  extended: true,
+  limit: "20mb"
+}));
 
 const router = new LLMRouter();
 
@@ -17,7 +25,7 @@ const router = new LLMRouter();
  * (useful for logging/debugging your cascade behavior).
  */
 app.post("/v1/route", async (req: Request, res: Response) => {
-  const { prompt, forceEscalate, allowList } = req.body ?? {};
+  const { prompt, forceEscalate, allowList , image} = req.body ?? {};
 
   if (!prompt || typeof prompt !== "string") {
     return res.status(400).json({ error: "Body must include a string `prompt`." });
@@ -29,7 +37,9 @@ app.post("/v1/route", async (req: Request, res: Response) => {
       allowList,
     });
 
-    const { text, tokensUsed } = await callModel(model, prompt);
+
+
+    const { text, tokensUsed } = await callModel(model, prompt,image);
     router.recordUsage(model, tokensUsed || estimatedTokens);
 
     return res.json({

@@ -1,6 +1,9 @@
 import "dotenv/config";
 import { LLMRouter } from "../router.ts";
 import { callModel } from "../index.ts";
+import {
+  type Part,
+} from "@google/generative-ai";
 
 async function main() {
   const router = new LLMRouter();
@@ -12,7 +15,9 @@ async function main() {
   console.log(`Routing to: ${model.label} (est. ${estimatedTokens} tokens)`);
 
   // 2. Call the actual provider.
-  const { text, tokensUsed } = await callModel(model, prompt);
+  const image  = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO5Xn4sAAAAASUVORK5CYII=";
+
+  const { text, tokensUsed } = await callModel(model, prompt,image);
   console.log("Response:", text);
 
   // 3. Record real usage (prefer provider-reported tokens over the estimate).

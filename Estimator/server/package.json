@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "start": "npm run tsc && node dist/index.js",
+    "start": "npm run build && node dist/index.js",
+    "build": "npx copyfiles -u 1 \"src/resources/**/*\" dist",
     "tsc": "tsc",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,14 +18,18 @@
     "@types/multer": "^2.2.0",
     "@types/node": "^25.9.5",
     "@typescript-eslint/parser": "^8.61.0",
+    "copyfiles": "^2.4.1",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
     "typescript": "^6.0.3"
   },
   "dependencies": {
     "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "multer": "^2.2.0",
+    "onnxruntime-node": "^1.27.0",
+    "ppu-paddle-ocr": "^6.1.0",
     "swagger-ui-express": "^5.0.1",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"

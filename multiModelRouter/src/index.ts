@@ -5,12 +5,20 @@ import { callClaude } from "./providers/claude.ts";
 import { callCerebras } from "./providers/cerebras.ts";
 import { callMistral } from "./providers/mistral.ts";
 import { callOpenRouter } from "./providers/openrouter.ts";
+import {
+  type Part,
+} from "@google/generative-ai";
+
+
 
 export interface ProviderResponse {
   text: string;
   /** Actual tokens used, if the provider reports it (preferred over estimate). */
   tokensUsed: number;
 }
+
+
+const parts: Part[] = [];
 
 /**
  * Dispatches to the right provider SDK/fetch call based on model.provider.
@@ -19,7 +27,8 @@ export interface ProviderResponse {
  */
 export async function callModel(
   model: ModelConfig,
-  prompt: string
+  prompt: string,
+  image: any
 ): Promise<ProviderResponse> {
   switch (model.provider) {
     case "groq":
@@ -27,7 +36,20 @@ export async function callModel(
     case "cerebras":
       return callCerebras(model, prompt);
     case "gemini":
-      return callGemini(model, prompt);
+
+      if (image) {
+        parts.push({
+          inlineData: {
+            mimeType: image.mimeType,
+            data: image.base64,
+          },
+        });
+      }
+
+      parts.push({
+        text: prompt,
+      });
+      return callGemini(model, parts);
     case "mistral":
       return callMistral(model, prompt);
     case "openrouter":
@@ -37,8 +59,8 @@ export async function callModel(
     default:
       throw new Error(
         `No provider adapter wired up yet for "${model.provider}". ` +
-          `Add one in src/providers/${model.provider}.ts following the ` +
-          `pattern in groq.ts / gemini.ts / claude.ts.`
+        `Add one in src/providers/${model.provider}.ts following the ` +
+        `pattern in groq.ts / gemini.ts / claude.ts.`
       );
   }
 }

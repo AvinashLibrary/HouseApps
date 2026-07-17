@@ -83,6 +83,12 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
       : '✨ Parsed! Double-check the fields below before saving.');
   };
 
+  // The server's local merchant-category mapping (categorizer.ts) uses a
+  // generic vocabulary; translate it into this app's actual category keys
+  // where there's a clear match. Anything else falls through to the
+  // client-side keyword parser over the item names.
+  const SERVER_CATEGORY_MAP = { grocery: 'food', shopping: 'shopping', fuel: 'transport', food: 'dining' };
+
   const handleScanReceipt = async () => {
     if (!selectedFile) return;
     if (!selectedFile.type?.startsWith('image/')) {
@@ -91,25 +97,56 @@ export default function BillModal({ open, onClose, defaultMonthIdx = 11 }) {
     }
     setOcrLoading(true);
     try {
-      const { rawText, amountGuess } = await scanReceipt(activeGroup.id, selectedFile);
-      if (!rawText.trim()) {
-        showToast("⚠ Couldn't read any text off that image — try a clearer photo, or fill in the details manually.");
+      const result = await scanReceipt(activeGroup.id, selectedFile);
+      const { merchant: ocrMerchant, date: ocrDate, total, items, category, confidence } = result;
+
+      if (!ocrMerchant && total == null && (!items || items.length === 0)) {
+        showToast("⚠ Couldn't read that receipt — try a clearer photo, or fill in the details manually.");
         return;
       }
-      setAiText(rawText);
+
+      // The server only sends back raw OCR text when it's running with
+      // OCR_DEBUG on, so build a natural-language summary from the structured
+      // fields instead — readable, and still re-parseable if the manual
+      // "Parse" button gets clicked again after hand-editing it.
+      const summaryParts = [];
+      if (total != null) summaryParts.push(String(total));
+      if (ocrMerchant) summaryParts.push(`at ${ocrMerchant}`);
+      if (items?.length) summaryParts.push(`for ${items.map(i => i.name).join(', ')}`);
+      setAiText(summaryParts.join(' '));
       setShowAi(true);
-      const result = handleAiParse(rawText);
-      // The server's total-amount detection is tuned for receipt layouts
-      // ("Total:", "Grand Total:") — use it as a fallback if the general
-      // client-side parser didn't already find a number.
-      if (!result?.amountFound && amountGuess) setAmount(String(amountGuess));
+
+      if (ocrMerchant) setMerchant(ocrMerchant);
+      if (total != null) setAmount(String(total));
+
+      const validSubKeys = BUDGET_STRUCTURE.flatMap(cat => visibleSubs(activeGroup?.type, cat).map(s => s.key));
+      let categoryFound = false;
+      const mappedKey = category ? SERVER_CATEGORY_MAP[category.toLowerCase()] : null;
+      if (mappedKey && validSubKeys.includes(mappedKey)) {
+        setSubCatKey(mappedKey);
+        categoryFound = true;
+      } else if (items?.length) {
+        const parsed = parseExpenseText(items.map(i => i.name).join(', '));
+        if (parsed.subCatKey && validSubKeys.includes(parsed.subCatKey)) {
+          setSubCatKey(parsed.subCatKey);
+          categoryFound = true;
+        }
+      }
+
+      // Jump the month selector to match the receipt's date, if it parses
+      // and this group actually has a month axis.
+      if (!isPool && ocrDate) {
+        const parsedDate = new Date(ocrDate);
+        if (!Number.isNaN(parsedDate.getTime())) setMonthIdx(parsedDate.getMonth());
+      }
 
       const missing = [];
-      if (!result?.amountFound && !amountGuess) missing.push('amount');
-      if (!result?.categoryFound) missing.push('category');
+      if (total == null) missing.push('amount');
+      if (!categoryFound) missing.push('category');
+      const confidenceNote = typeof confidence === 'number' ? ` (${Math.round(confidence * 100)}% confidence)` : '';
       showToast(missing.length > 0
-        ? `📄 Scanned — please fill in ${missing.join(' and ')} below.`
-        : '📄 Scanned! Double-check the fields below before saving.');
+        ? `📄 Scanned${confidenceNote} — please fill in ${missing.join(' and ')} below.`
+        : `📄 Scanned${confidenceNote}! Double-check the fields below before saving.`);
     } catch (e) {
       showToast(`⚠ Couldn't scan that receipt: ${e.message}`);
     } finally {
