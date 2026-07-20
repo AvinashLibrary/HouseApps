@@ -31,12 +31,6 @@ import { LlmFallbackRepository } from './features/ocr/llm-fallback.repository';
 import { OcrService } from './features/ocr/ocr.service';
 import { ocrRoutes } from './features/ocr/ocr.routes';
 
-import { AuthRepository } from './features/auth/auth.repository';
-import { AuthService } from './features/auth/auth.service';
-import { JwtService } from './features/auth/jwt.service';
-import { authRoutes } from './features/auth/auth.routes';
-import { authenticate } from './middleware/authenticate';
-
 import swaggerUi from 'swagger-ui-express';
 import { readFileSync } from 'fs';
 import { parse } from 'yaml';
@@ -62,10 +56,6 @@ const ocrEngine    = new OcrEngine();
 const llmFallback  = new LlmFallbackRepository();
 const ocrService   = new OcrService(ocrEngine, llmFallback);
 
-const authRepo     = new AuthRepository();
-const jwtService   = new JwtService();
-const authService  = new AuthService(authRepo, jwtService);
-
 // ── express app ───────────────────────────────────────────────────
 const app = express();
 
@@ -81,14 +71,12 @@ app.use(
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc));
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-app.use('/api/auth', authRoutes(authService));
-
-app.use('/api/groups', authenticate, groupRoutes(groupService));
-app.use('/api/groups/:groupId/actuals', authenticate, actualsRoutes(actualsService));
-app.use('/api/groups/:groupId/bills', authenticate, billsRoutes(billsService));
-app.use('/api/groups/:groupId/logs', authenticate, logsRoutes(logsService));
-app.use('/api/groups/:groupId/analysis', authenticate, analysisRoutes(analysisService, groupService));
-app.use('/api/groups/:groupId/ocr', authenticate, ocrRoutes(ocrService));
+app.use('/api/groups', groupRoutes(groupService));
+app.use('/api/groups/:groupId/actuals', actualsRoutes(actualsService));
+app.use('/api/groups/:groupId/bills', billsRoutes(billsService));
+app.use('/api/groups/:groupId/logs', logsRoutes(logsService));
+app.use('/api/groups/:groupId/analysis', analysisRoutes(analysisService, groupService));
+app.use('/api/groups/:groupId/ocr', ocrRoutes(ocrService));
 
 // Top-level await isn't available under CommonJS output, so startup is
 // wrapped in an async function — the server only starts accepting requests

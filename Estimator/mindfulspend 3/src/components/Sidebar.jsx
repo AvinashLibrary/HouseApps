@@ -8,7 +8,7 @@ const NAV_ITEMS = [
   { id: 'receipts',  icon: '📎', label: 'Receipts & Log' },
 ];
 
-export default function Sidebar({ activeTab, onTabChange, onChangeGroup, onLogout }) {
+export default function Sidebar({ activeTab, onTabChange, onChangeGroup }) {
   const { activeGroup, billLog, getSubActualMonth, getSubBudget } = useApp();
 
   const emptyMonths = MONTHS.filter((_, i) =>
@@ -62,12 +62,6 @@ export default function Sidebar({ activeTab, onTabChange, onChangeGroup, onLogou
           <span className="nav-icon">⇄</span>
           <span>Change Group</span>
         </button>
-        {onLogout && (
-          <button className="nav-item" onClick={onLogout} style={{ width: '100%' }}>
-            <span className="nav-icon">→</span>
-            <span>Sign out</span>
-          </button>
-        )}
         <div style={{ fontSize: '0.75rem', color: 'var(--muted)', padding: '4px 8px' }}>
           {activeGroup?.name}
         </div>

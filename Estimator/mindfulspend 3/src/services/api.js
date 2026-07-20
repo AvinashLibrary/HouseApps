@@ -1,19 +1,7 @@
 const API_BASE = 'http://localhost:4000/api';
-const TOKEN_KEY = 'mindfulspend_token';
-
-export const tokenStore = {
-  get: ()        => localStorage.getItem(TOKEN_KEY),
-  set: (t)       => localStorage.setItem(TOKEN_KEY, t),
-  clear: ()      => localStorage.removeItem(TOKEN_KEY),
-};
-
-function authHeader() {
-  const t = tokenStore.get();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-}
 
 async function _fetch(method, path, body) {
-  const opts = { method, headers: { 'Content-Type': 'application/json', ...authHeader() } };
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body !== undefined) opts.body = JSON.stringify(body);
   const res = await fetch(API_BASE + path, opts);
   const json = await res.json();
@@ -25,20 +13,13 @@ async function _fetch(method, path, body) {
 // header manually — the browser needs to add its own boundary string, which
 // only happens if Content-Type is left unset when the body is a FormData.
 async function _fetchMultipart(method, path, formData) {
-  const res = await fetch(API_BASE + path, { method, headers: authHeader(), body: formData });
+  const res = await fetch(API_BASE + path, { method, body: formData });
   const json = await res.json();
   if (!json.success) throw new Error(json.error || `HTTP ${res.status}`);
   return json.data;
 }
 
 export const api = {
-  // ── Auth ──────────────────────────────────────────────────────
-  signup:      (email, password, firstName, lastName) => _fetch('POST', '/auth/signup', { email, password, firstName, lastName }),
-  login:       (email, password)                      => _fetch('POST', '/auth/login',  { email, password }),
-  googleAuth:  (idToken)                              => _fetch('POST', '/auth/google', { idToken }),
-  getMe:       ()                                     => _fetch('GET',  '/auth/me'),
-
-  // ── Groups & features ─────────────────────────────────────────
   getGroups:   ()                   => _fetch('GET',  '/groups'),
   getGroup:    (id)                 => _fetch('GET',  `/groups/${id}`),
   createGroup: (payload)            => _fetch('POST', '/groups', payload),

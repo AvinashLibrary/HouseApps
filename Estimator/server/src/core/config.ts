@@ -27,7 +27,6 @@ export const config = {
   // categorization (e.g. a pharmacy receipt with both medicine and snacks),
   // which local lookup genuinely can't do — flip on when that's needed.
   ocrCategorizeItems: process.env.OCR_CATEGORIZE_ITEMS === 'true',
-  mongoUri: process.env.MONGO_URI ?? 'mongodb://localhost:4040/mindfulspend',
-  jwtSecret: process.env.JWT_SECRET ?? 'change-me-in-production',
-  googleClientId: process.env.GOOGLE_CLIENT_ID ?? '',
+  mongoUri : process.env.MONGO_URI = 'mongodb://localhost:4040/mindfulspend'
+
 };

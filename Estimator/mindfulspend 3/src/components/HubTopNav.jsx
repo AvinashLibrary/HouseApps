@@ -6,7 +6,7 @@ import '../styles/HubTopNav.css';
  * - Has groups   → shows "Household Groups" (you're managing your list)
  * Inside a group, AppView's Sidebar takes over — this component isn't rendered.
  */
-export default function HubTopNav({ hasGroups, onNewGroup, onViewChange, onLogout }) {
+export default function HubTopNav({ hasGroups, onNewGroup, onViewChange }) {
   const label = hasGroups ? 'MindfulSpend' : 'HouseApps Fiscal';
   return (
     <header className="htn-root">
@@ -38,14 +38,6 @@ export default function HubTopNav({ hasGroups, onNewGroup, onViewChange, onLogou
               <rect x="11" y="11" width="6" height="6" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
             </svg>
           </button>
-          {onLogout && (
-            <button className="htn-btn-icon" onClick={onLogout} title="Sign out" aria-label="Sign out">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M7 9h8M12 6l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M10 3H4a1 1 0 00-1 1v10a1 1 0 001 1h6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
-            </button>
-          )}
         </div>
       </div>
     </header>
