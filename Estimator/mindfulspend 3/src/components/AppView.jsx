@@ -7,7 +7,7 @@ import AnalysisTab from './AnalysisTab';
 import ReceiptsTab from './ReceiptsTab';
 import BillModal from './BillModal';
 
-export default function AppView({ onChangeGroup }) {
+export default function AppView({ onChangeGroup, onLogout }) {
   const [activeTab, setActiveTab]     = useState('dashboard');
   const [modalOpen, setModalOpen]     = useState(false);
   const [modalMonthIdx, setModalMonthIdx] = useState(11);
@@ -50,7 +50,7 @@ export default function AppView({ onChangeGroup }) {
 
   return (
     <div className="app-layout">
-      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} onChangeGroup={onChangeGroup} />
+      <Sidebar activeTab={activeTab} onTabChange={setActiveTab} onChangeGroup={onChangeGroup} onLogout={onLogout} />
       <main className="app-main">
         {renderTab()}
       </main>
