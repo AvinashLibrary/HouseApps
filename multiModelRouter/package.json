@@ -1,0 +1,26 @@
+{
+  "name": "llm-router",
+  "version": "1.0.0",
+  "description": "Cost-aware LLM router: counts tokens locally, tracks free-tier quotas, and cascades requests across providers (Groq, Cerebras, Gemini, Mistral, OpenRouter, Claude).",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc && cp -r src/public dist/public",
+    "start": "node dist/server.js",
+    "dev": "tsx src/index.ts",
+    "serve": "tsx src/server.ts",
+    "serve:build": "node dist/server.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.111.0",
+    "@google/generative-ai": "^0.24.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "gpt-tokenizer": "^2.5.1"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.10",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.4"
+  }
+}

@@ -1,0 +1,164 @@
+{
+  "gemini:3.1-flash-lite": {
+    "requests": 20,
+    "tokens": 54851,
+    "recentRequestTimestamps": [
+      1784290705705,
+      1784290754475
+    ],
+    "recentTokenEvents": [
+      {
+        "ts": 1784290705705,
+        "tokens": 4830
+      },
+      {
+        "ts": 1784290754475,
+        "tokens": 6784
+      }
+    ]
+  },
+  "gemini:3.1-flash-lite::2026-07-15": {
+    "requests": 2,
+    "tokens": 897,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:3.1-flash-lite::2026-07-16": {
+    "requests": 18,
+    "tokens": 53954,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:2.5-flash-lite": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:2.5-flash-lite::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:3.5-flash": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:3.5-flash::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:2.5-flash": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:2.5-flash::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:3-flash": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:3-flash::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:gemma-4-31b": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:gemma-4-31b::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:gemma-4-26b": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "gemini:gemma-4-26b::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "groq:llama-3.3-70b": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "groq:llama-3.3-70b::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "cerebras:llama-3.3-70b": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "cerebras:llama-3.3-70b::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "mistral:small-free": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "mistral:small-free::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "openrouter:llama-3.3-70b-free": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "openrouter:llama-3.3-70b-free::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "claude:haiku-4.5": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  },
+  "claude:haiku-4.5::2026-07-16": {
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
+  }
+}

@@ -159,6 +159,32 @@ export const PostBillSchema = z.object({
 
 export type PostBillRequest = z.infer<typeof PostBillSchema> & { groupId: string };
 
+// ── OCR ──────────────────────────────────────────────────────────
+// No zod body schema here — the request is multipart/form-data (an image
+// file), not JSON, so there's no req.body to validate the usual way.
+
+export interface OcrItem {
+  name: string;
+  amount: number | null;
+  /** Only populated when item-level categorization was requested (see config.ocrCategorizeItems). */
+  category?: string | null;
+}
+
+export interface OcrResult {
+  merchant: string | null;
+  invoiceNumber: string | null;
+  date: string | null;
+  currency: string | null;
+  subtotal: number | null;
+  tax: number | null;
+  discount: number | null;
+  total: number | null;
+  items: OcrItem[];
+  category: string | null;
+  confidence: number;      // 0–1, overall extraction confidence
+  rawText?: string;        // present only when OCR_DEBUG=true — never exposed otherwise
+}
+
 // ═══════════════════════════════════════════ LOGS ═════
 
 export type ChangeSource = 'manual' | 'bill';

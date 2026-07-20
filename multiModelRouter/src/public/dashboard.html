@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>LLM Router — Quota Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #171a21;
+    --border: #262b36;
+    --text: #e6e8ec;
+    --muted: #8b93a3;
+    --free: #4fd1c5;
+    --paid: #f6ad55;
+    --danger: #f56565;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 24px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .subtitle { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+  .card-title { font-size: 14px; font-weight: 600; }
+  .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+  }
+  .badge.free { color: var(--free); border-color: var(--free); }
+  .badge.paid { color: var(--paid); border-color: var(--paid); }
+  .stat-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+  .stat-row b { color: var(--text); font-weight: 500; }
+  canvas { margin-top: 10px; max-height: 90px; }
+  .refresh-note { color: var(--muted); font-size: 12px; margin-top: 24px; }
+  .error { color: var(--danger); font-size: 13px; }
+</style>
+</head>
+<body>
+  <h1>LLM Router — Quota Dashboard</h1>
+  <div class="subtitle" id="lastUpdated">Loading…</div>
+  <div class="grid" id="grid"></div>
+  <div class="refresh-note">Auto-refreshes every 10s. Data from GET /v1/usage-all.</div>
+
+<script>
+const REFRESH_MS = 10_000;
+const charts = {}; // modelId -> Chart instance, so we update in place instead of re-creating
+
+function pct(used, limit) {
+  if (!isFinite(limit) || limit <= 0) return 0;
+  return Math.min(100, Math.round((used / limit) * 100));
+}
+
+function barColor(percent) {
+  if (percent >= 90) return "#f56565";
+  if (percent >= 60) return "#f6ad55";
+  return "#4fd1c5";
+}
+
+function renderCard(row) {
+  const isFree = row.costTier === 0;
+  const rpdLimit = row.limits.rpd;
+  const tpmLimit = row.limits.tpm;
+  const rpdUsed = row.usage.requestsToday;
+  const tpmUsed = row.usage.tokensLastMinute;
+
+  const rpdPct = pct(rpdUsed, rpdLimit);
+  const tpmPct = pct(tpmUsed, tpmLimit);
+
+  return `
+    <div class="card" data-id="${row.id}">
+      <div class="card-header">
+        <div class="card-title">${row.label}</div>
+        <div class="badge ${isFree ? "free" : "paid"}">${isFree ? "FREE" : "PAID"}</div>
+      </div>
+      <div class="stat-row">
+        <span>Requests today</span>
+        <b>${rpdUsed} / ${isFinite(rpdLimit) ? rpdLimit : "∞"}</b>
+      </div>
+      <div class="stat-row">
+        <span>Tokens (last min)</span>
+       
+      </div>
+      <canvas id="chart-${row.id.replace(/[^a-zA-Z0-9]/g, "_")}"></canvas>
+    </div>
+  `;
+}
+
+function upsertChart(row) {
+  const canvasId = "chart-" + row.id.replace(/[^a-zA-Z0-9]/g, "_");
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  const rpdPct = pct(row.usage.requestsToday, row.limits.rpd);
+  const tpmPct = pct(row.usage.tokensLastMinute, row.limits.tpm);
+
+  const data = {
+    labels: ["Requests/day", "Tokens/min"],
+    datasets: [{
+      data: [rpdPct, tpmPct],
+      backgroundColor: [barColor(rpdPct), barColor(tpmPct)],
+      borderRadius: 4,
+    }],
+  };
+
+  if (charts[row.id]) {
+    charts[row.id].data = data;
+    charts[row.id].update("none");
+  } else {
+    charts[row.id] = new Chart(canvas, {
+      type: "bar",
+      data,
+      options: {
+        indexAxis: "y",
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { min: 0, max: 100, ticks: { color: "#8b93a3" }, grid: { color: "#262b36" } },
+          y: { ticks: { color: "#e6e8ec" }, grid: { display: false } },
+        },
+        plugins: { legend: { display: false } },
+      },
+    });
+    canvas.parentElement.style.height = "110px";
+  }
+}
+
+async function refresh() {
+  try {
+    const res = await fetch("/v1/usage-all");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const rows = await res.json();
+
+    // Always re-render the grid, then destroy+recreate each chart —
+    // simplest correct approach; this dashboard polls every 10s, so the
+    // extra render cost is negligible.
+    const grid = document.getElementById("grid");
+    grid.innerHTML = rows.map(renderCard).join("");
+
+    Object.values(charts).forEach((c) => c.destroy());
+    for (const key in charts) delete charts[key];
+    rows.forEach(upsertChart);
+
+    // document.getElementById("lastUpdated").textContent =
+    //   "Last updated: " + new Date().toLocaleTimeString();
+  } catch (err) {
+    document.getElementById("lastUpdated").innerHTML =
+      `<span class="error">Failed to load /v1/usage-all: ${err.message}</span>`;
+  }
+}
+
+refresh();
+setInterval(refresh, REFRESH_MS);
+</script>
+</body>
+</html>
