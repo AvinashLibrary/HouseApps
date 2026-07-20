@@ -5,7 +5,7 @@ import EmptyHubState from './EmptyState';
 import GroupCard from './GroupCard';
 import HubTopNav from './HubTopNav';
 
-export default function HubView({ onOpenGroup }) {
+export default function HubView({ onOpenGroup, onLogout }) {
   const { groups, deleteGroup, showToast } = useApp();
   const [showEditor, setShowEditor] = useState(false);
   const [editGroup, setEditGroup] = useState(null);
@@ -31,7 +31,7 @@ export default function HubView({ onOpenGroup }) {
 
   return (
     <>
-      <HubTopNav hasGroups={groups.length > 0} onNewGroup={handleNew} />
+      <HubTopNav hasGroups={groups.length > 0} onNewGroup={handleNew} onLogout={onLogout} />
       <div className="hub-wrap">
       {!isEmpty && (
         <div className="hub-header">
