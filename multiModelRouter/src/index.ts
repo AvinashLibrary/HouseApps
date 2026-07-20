@@ -1,10 +1,10 @@
 import type { ModelConfig } from "./types.ts";
-import { callGroq } from "./providers/groq.ts";
-import { callGemini } from "./providers/gemini.ts";
-import { callClaude } from "./providers/claude.ts";
-import { callCerebras } from "./providers/cerebras.ts";
-import { callMistral } from "./providers/mistral.ts";
-import { callOpenRouter } from "./providers/openrouter.ts";
+import { callGroq } from "./providers/groq";
+import { callGemini } from "./providers/gemini";
+import { callClaude } from "./providers/claude";
+import { callCerebras } from "./providers/cerebras";
+import { callMistral } from "./providers/mistral";
+import { callOpenRouter } from "./providers/openrouter";
 import {
   type Part,
 } from "@google/generative-ai";

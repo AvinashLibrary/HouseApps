@@ -1,7 +1,13 @@
 import "dotenv/config";
 import express, { type Request, type Response } from "express";
-import { LLMRouter } from "./router.js";
-import { callModel } from "./index.ts";
+import path from "path";
+import { fileURLToPath } from "url";
+import { LLMRouter } from "./router";
+import { callModel } from "./index";
+import { MODEL_CASCADE } from "./modelConfig";
+ 
+const publicDir = path.join(__dirname, "public");
+
 
 const app = express();
 
@@ -14,6 +20,7 @@ app.use(express.urlencoded({
   limit: "20mb"
 }));
 
+app.use(express.static(publicDir));
 const router = new LLMRouter();
 
 /**
@@ -25,6 +32,7 @@ const router = new LLMRouter();
  * (useful for logging/debugging your cascade behavior).
  */
 app.post("/v1/route", async (req: Request, res: Response) => {
+
   const { prompt, forceEscalate, allowList , image} = req.body ?? {};
 
   if (!prompt || typeof prompt !== "string") {
@@ -65,6 +73,33 @@ app.post("/v1/route", async (req: Request, res: Response) => {
 app.get("/v1/usage/:modelId", (req: Request, res: Response) => {
   const snapshot = router.getUsageSnapshot(req.params.modelId);
   res.json(snapshot);
+});
+
+/**
+ * GET /v1/usage-all
+ * Returns every model in the cascade with its current usage AND its
+ * configured limits in one response — this is what the dashboard
+ * (public/dashboard.html) charts. Kept separate from /v1/usage/:modelId
+ * so the dashboard doesn't need N+1 requests.
+ */
+app.get("/v1/usage-all", (_req: Request, res: Response) => {
+  const rows = MODEL_CASCADE.map((model) => {
+    const { sliding, daily } = router.getUsageSnapshot(model.id);
+    return {
+      id: model.id,
+      label: model.label,
+      provider: model.provider,
+      costTier: model.costTier,
+      limits: model.limits,
+      usage: {
+        requestsToday: daily.requests,
+        tokensToday: daily.tokens,
+        requestsLastMinute: sliding.recentRequestTimestamps.length,
+        tokensLastMinute: sliding.recentTokenEvents.reduce((s, e) => s + e.tokens, 0),
+      },
+    };
+  });
+  res.json(rows);
 });
 
 const PORT = Number(process.env.PORT) || 3000;

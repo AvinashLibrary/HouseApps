@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { LLMRouter } from "../router.ts";
-import { callModel } from "../index.ts";
+import { LLMRouter } from "../router";
+import { callModel } from "../index";
 import {
   type Part,
 } from "@google/generative-ai";

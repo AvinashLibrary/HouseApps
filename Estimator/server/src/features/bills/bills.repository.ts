@@ -1,26 +1,34 @@
-import type { BillEntry, PostBillRequest } from '../../types/constant_type';
-import type { JsonStore } from '../../core/store';
+import type { BillEntry } from '../../types/constant_type';
+import { BillModel } from '../../models/bill.model';
+
+function toBillEntry(doc: any): BillEntry {
+  return {
+    ts: doc.ts,
+    groupId: doc.groupId,
+    fileName: doc.fileName,
+    amount: doc.amount,
+    subCatKey: doc.subCatKey,
+    subCatLabel: doc.subCatLabel,
+    monthIdx: doc.monthIdx,
+    note: doc.note,
+  };
+}
 
 export class BillsRepository {
-  constructor(private store: JsonStore) {}
-
-  private key(groupId: string): string {
-    return `bills/${groupId}`;
-  }
-
   async findAll(groupId: string): Promise<BillEntry[]> {
-    return (await this.store.read<BillEntry[]>(this.key(groupId))) ?? [];
+    // Ascending by ts — matches the old JsonStore array's push() order
+    // (oldest first), so nothing downstream that assumed that order breaks.
+    const docs = await BillModel.find({ groupId }).sort({ ts: 1 }).lean();
+    return docs.map(toBillEntry);
   }
 
   async findByMonth(groupId: string, monthIdx: number): Promise<BillEntry[]> {
-    const all = await this.findAll(groupId);
-    return all.filter(b => b.monthIdx === monthIdx);
+    const docs = await BillModel.find({ groupId, monthIdx }).sort({ ts: 1 }).lean();
+    return docs.map(toBillEntry);
   }
 
   async save(groupId: string, entry: BillEntry): Promise<BillEntry> {
-    const all = await this.findAll(groupId);
-    all.push(entry);
-    await this.store.write(this.key(groupId), all);
+    await BillModel.create({ ...entry, groupId });
     return entry;
   }
 }

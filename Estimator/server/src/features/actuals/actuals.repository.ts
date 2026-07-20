@@ -1,15 +1,10 @@
 import type { YearActuals, MonthActuals } from '../../types/constant_type';
-import type { JsonStore } from '../../core/store';
+import { ActualsModel } from '../../models/actuals.model';
 
 export class ActualsRepository {
-  constructor(private store: JsonStore) {}
-
-  private key(groupId: string, year: number): string {
-    return `actuals/${groupId}/${year}`;
-  }
-
   async findYear(groupId: string, year: number): Promise<YearActuals> {
-    return (await this.store.read<YearActuals>(this.key(groupId, year))) ?? {};
+    const doc = await ActualsModel.findOne({ groupId, year }).lean();
+    return (doc?.months as YearActuals) ?? {};
   }
 
   async findMonth(groupId: string, year: number, monthIdx: number): Promise<MonthActuals> {
@@ -18,9 +13,19 @@ export class ActualsRepository {
   }
 
   async saveMonth(groupId: string, year: number, monthIdx: number, actuals: MonthActuals): Promise<void> {
+    // Read-modify-write the whole year document, same as the original
+    // JsonStore version did — kept deliberately identical rather than
+    // switching to an atomic `$set: {'months.5': ...}` dot-notation update,
+    // which would be a real improvement (removes the same race condition
+    // that existed before) but is a behavioral change beyond "migrate to
+    // Mongo" as asked. Worth doing as a explicit follow-up if it matters.
     const yearData = await this.findYear(groupId, year);
     yearData[String(monthIdx)] = actuals;
-    await this.store.write(this.key(groupId, year), yearData);
+    await ActualsModel.findOneAndUpdate(
+      { groupId, year },
+      { $set: { months: yearData } },
+      { upsert: true },
+    );
   }
 
   async mergeMonth(groupId: string, year: number, monthIdx: number, patch: MonthActuals): Promise<MonthActuals> {
