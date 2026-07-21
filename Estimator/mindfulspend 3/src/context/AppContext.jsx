@@ -567,12 +567,45 @@ export function AppProvider({ children }) {
     setBillLog(prev => [...billEntries, ...prev]);
     setChangeLog(prev => [...changeEntries, ...prev]);
 
-    // Fire-and-forget to server, one call per occurrence, independent of each other
+    // Persist to server: bill record + actuals update, one pair per occurrence.
+    // Both calls are needed — submitBill saves the receipt log entry, saveActuals
+    // saves the spending number so it survives a page refresh. Without saveActuals
+    // the UI shows the right total until refresh, then loses it because the
+    // actuals endpoint never received the update.
     for (const mi of monthIdxs) {
       try {
         await api.submitBill(groupId, { ...billPayload, monthIdx: mi, year: ACTIVE_YEAR });
       } catch (e) {
         console.warn('Server unavailable — bill kept locally only:', e.message);
+      }
+
+      // Persist the actuals update for this month so the spending number
+      // is durable across refreshes. We read from the setActuals updater's
+      // result indirectly — build the month's actuals map from current state
+      // the same way setActualValue's debounced save does.
+      if (firstItem) {
+        try {
+          // Build the full actuals map for this month from the current flat state.
+          // We use a functional ref pattern: capture actuals at call time so we
+          // don't need to add it as a dependency (it changes on every keystroke).
+          setActuals(current => {
+            const monthActuals = {};
+            BUDGET_STRUCTURE.forEach(cat => cat.subs.forEach(sub => {
+              (DETAIL_ITEMS[sub.key] || []).forEach(item => {
+                const v = current[`${item.key}-${mi}`];
+                if (v !== undefined) monthActuals[item.key] = v;
+              });
+            }));
+            // Fire async without awaiting — we're inside a setState updater
+            // which must be synchronous, so schedule the network call outside.
+            api.saveActuals(groupId, ACTIVE_YEAR, mi, monthActuals).catch(e =>
+              console.warn('Server unavailable — actuals kept locally only:', e.message)
+            );
+            return current; // no state change, just reading
+          });
+        } catch (e) {
+          console.warn('Server unavailable — actuals kept locally only:', e.message);
+        }
       }
     }
   }, [showToast, groups]);
