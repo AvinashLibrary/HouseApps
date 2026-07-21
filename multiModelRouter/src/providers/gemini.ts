@@ -12,6 +12,7 @@ export async function callGemini(
 ): Promise<ProviderResponse> {
   const apiKey = process.env.GEMINI_API_KEY;
 
+
   if (!apiKey) {
     throw new Error("Missing GEMINI_API_KEY");
   }
@@ -31,7 +32,7 @@ export async function callGemini(
   
   const response = result.response;
   const usage = response.usageMetadata;
-  console.log(response.text());
+  console.debug(response.text());
   return {
     text: response.text(),
     tokensUsed:

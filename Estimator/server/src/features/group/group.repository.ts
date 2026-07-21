@@ -11,12 +11,17 @@ function toGroup(doc: any): Group {
     members: doc.members,
     splits: doc.splits,
     budgetPcts: doc.budgetPcts,
+    ownerId: doc.ownerId,
+    viewers: doc.viewers ?? [],
   };
 }
 
 export class GroupRepository {
-  async findAll(): Promise<Group[]> {
-    const docs = await GroupModel.find().lean();
+  // Returns all groups where the user is owner OR a viewer.
+  async findAllForUser(userId: string): Promise<Group[]> {
+    const docs = await GroupModel.find({
+      $or: [{ ownerId: userId }, { viewers: userId }],
+    }).lean();
     return docs.map(toGroup);
   }
 
@@ -34,6 +39,15 @@ export class GroupRepository {
       { upsert: true, new: true, setDefaultsOnInsert: true },
     );
     return group;
+  }
+
+  // Adds a userId to the viewers array (no-op if already present).
+  async addViewer(groupId: string, userId: string): Promise<boolean> {
+    const res = await GroupModel.updateOne(
+      { id: groupId },
+      { $addToSet: { viewers: userId } },
+    );
+    return res.matchedCount > 0;
   }
 
   async delete(id: string): Promise<boolean> {

@@ -115,12 +115,16 @@ export const PostGroupSchema = z.object({
   type:z.string(),
   splits: SplitsSchema,
   budgetPcts: BudgetPctsSchema,
+  // viewers can be set at creation time (optional); ownerId is injected server-side
+  viewers: z.array(z.string()).optional(),
 });
 
 export type PostGroupRequest = z.infer<typeof PostGroupSchema>;
 
 // ── Group entity (stored shape — has id, POST body doesn't) ──────
 export interface Group {
+  ownerId: string;   // MongoDB _id of the creating user
+  viewers: string[]; // user _ids allowed read-only access
   id: string;
   name: string;
   type: string;
