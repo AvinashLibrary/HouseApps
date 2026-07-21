@@ -1,14 +1,19 @@
 {
   "gemini:3.1-flash-lite": {
-    "requests": 21,
-    "tokens": 57491,
+    "requests": 20,
+    "tokens": 54851,
     "recentRequestTimestamps": [
-      1784606278351
+      1784290705705,
+      1784290754475
     ],
     "recentTokenEvents": [
       {
-        "ts": 1784606278351,
-        "tokens": 2640
+        "ts": 1784290705705,
+        "tokens": 4830
+      },
+      {
+        "ts": 1784290754475,
+        "tokens": 6784
       }
     ]
   },
@@ -37,17 +42,10 @@
     "recentTokenEvents": []
   },
   "gemini:3.5-flash": {
-    "requests": 2,
-    "tokens": 7484,
-    "recentRequestTimestamps": [
-      1784607311764
-    ],
-    "recentTokenEvents": [
-      {
-        "ts": 1784607311764,
-        "tokens": 4834
-      }
-    ]
+    "requests": 0,
+    "tokens": 0,
+    "recentRequestTimestamps": [],
+    "recentTokenEvents": []
   },
   "gemini:3.5-flash::2026-07-16": {
     "requests": 0,
@@ -158,72 +156,6 @@
     "recentTokenEvents": []
   },
   "claude:haiku-4.5::2026-07-16": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "gemini:3.1-flash-lite::2026-07-20": {
-    "requests": 1,
-    "tokens": 2640,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "gemini:3.5-flash::2026-07-20": {
-    "requests": 2,
-    "tokens": 7484,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "gemini:2.5-flash::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "gemini:3-flash::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "gemini:gemma-4-31b::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "gemini:gemma-4-26b::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "groq:llama-3.3-70b::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "cerebras:llama-3.3-70b::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "mistral:small-free::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "openrouter:llama-3.3-70b-free::2026-07-20": {
-    "requests": 0,
-    "tokens": 0,
-    "recentRequestTimestamps": [],
-    "recentTokenEvents": []
-  },
-  "claude:haiku-4.5::2026-07-20": {
     "requests": 0,
     "tokens": 0,
     "recentRequestTimestamps": [],

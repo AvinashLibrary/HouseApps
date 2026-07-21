@@ -20,13 +20,6 @@ const GroupSchema = new Schema(
     name: { type: String, required: true },
     type: { type: String, required: true },
     members: { type: [MemberSchema], required: true },
-
-    // ── Ownership & access ────────────────────────────────────────
-    // The MongoDB _id (as string) of the User who created this group.
-    ownerId: { type: String, required: true, index: true },
-    // User IDs that can VIEW this group (read-only). Owner is NOT listed here.
-    viewers: { type: [String], default: [] },
-
     // Dynamic keyed-by-subCatKey/memberId shape (see constant_type.ts's
     // Splits/BudgetPcts types) — not a fixed set of fields, so Mixed rather
     // than modeling every possible category/member key.
