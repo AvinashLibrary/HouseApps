@@ -16,16 +16,16 @@ import type { ModelConfig } from "./types.ts";
  * reaches the tighter ones (or other providers) once those are exhausted.
  */
 export const MODEL_CASCADE: ModelConfig[] = [
-  // {
-  //   id: "gemini:3.1-flash-lite",
-  //   label: "Gemini 3.1 Flash-Lite (free — highest daily cap)",
-  //   provider: "gemini",
-  //   apiModel: "gemini-3.1-flash-lite",
-  //   // RPM 15, TPM 250K, RPD 500
-  //   limits: { rpm: 15, rpd: 500, tpm: 250_000 },
-  //   costTier: 0,
-  // },
-  // {
+  {
+    id: "gemini:3.1-flash-lite",
+    label: "Gemini 3.1 Flash-Lite (free — highest daily cap)",
+    provider: "gemini",
+    apiModel: "gemini-3.1-flash-lite",
+    // RPM 15, TPM 250K, RPD 500
+    limits: { rpm: 15, rpd: 500, tpm: 250_000 },
+    costTier: 0,
+  },
+  //{
   //   id: "gemini:2.5-flash-lite",
   //   label: "Gemini 2.5 Flash-Lite (free)",
   //   provider: "gemini",
